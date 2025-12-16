@@ -4,6 +4,6 @@ import app from "./app";
 export default {
   port: 4000,
   fetch: app.fetch,
-//   websocket: app.websocket, // if using Hono WS helper
+//   websocket: app.websocket, 
 };
 
