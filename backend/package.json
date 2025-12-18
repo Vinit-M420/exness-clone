@@ -11,6 +11,7 @@
     "typescript": "^5.9.3"
   },
   "dependencies": {
+    "@neondatabase/serverless": "^1.0.2",
     "dotenv": "^17.2.3",
     "drizzle-orm": "^0.45.1",
     "hono": "^4.10.8",
