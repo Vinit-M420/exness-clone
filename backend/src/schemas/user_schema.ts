@@ -23,7 +23,7 @@ export const UserSigninSchema = UserSignupSchema.pick({
   password: true,
 });
 
-export const ForgotPassSchema = UserSignupSchema.pick({
-  email: true,
-  firstName: true,
-});
+
+export const UpdatePwdSchema =  UserSignupSchema.pick({ password: true });
+export const UpdateNameSchema = UserSignupSchema.pick({ name: true });
+export const UpdateEmailSchema = UserSignupSchema.pick({ email: true });

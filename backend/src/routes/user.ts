@@ -3,9 +3,9 @@ import dotenv from "dotenv";
 import { eq } from "drizzle-orm"
 import { users } from "../db/schema"
 import { db } from "../db";
-import { UserSigninSchema, UserSignupSchema } from "../schemas/user_schema";
+import { UpdateEmailSchema, UpdatePwdSchema, UserSigninSchema, UserSignupSchema } from "../schemas/user_schema";
 import { HttpStatusCode } from "../schemas/response";
-import { sign } from "hono/jwt";
+import { jwt, sign } from "hono/jwt";
 dotenv.config()
 
 const userRouter = new Hono()
@@ -65,7 +65,7 @@ userRouter.post("/auth/login", async (c) => {
     }
 
     const user = await db
-        .select({ id: users.id, password })
+        .select({ id: users.id, password: users.password, })
         .from(users)
         .where(eq(users.email, email))
 
@@ -95,17 +95,27 @@ userRouter.post("/auth/login", async (c) => {
     }
 )
 
+userRouter.use("/user/*",
+  jwt({
+    secret: process.env.JWT_SECRET!,
+  })
+)
 
 userRouter.get("/user/me", async (c) =>{
-    const { userId } = c.get("jwtPayload");
+    const payload = c.get("jwtPayload");
+    
+    if (!payload) return c.json({ message: "Unauthorized" }, HttpStatusCode.Unauthorized);
+    
+    const userId = payload.id;
 
     try{
-        const response = db.select({name: users.name, email: users.email, password: users.password })
+        const response = await db.select({name: users.name, email: users.email })
         .from(users)
         .where(eq(users.id, userId))
-        .then(res => res[0])
+        .then(res => res[0]);
+        // console.log(response);
+        return c.json({ content: response }, HttpStatusCode.Ok)
 
-        return c.json({ response }, HttpStatusCode.Ok)
     } catch(err){
         return c.json({
             message: "Error in finding the user's detail",
@@ -114,30 +124,59 @@ userRouter.get("/user/me", async (c) =>{
 }
 })
 
-userRouter.put("/user/update", async (c) => {
-    const { userId } = await c.get("jwtPayload");
+userRouter.put("/user/password", async (c) => {
+    const { id } = await c.get("jwtPayload");
     const body = await c.req.json();
-    const { name, email, password } = body;
 
-    const parsedBodyWithSuccess = UserSignupSchema.safeParse(body);
+    const parsedBodyWithSuccess = UpdatePwdSchema.safeParse(body);
 
     if(!parsedBodyWithSuccess.success){
         return c.json({
-            message: "Email or Password has incorrect format",
-            errors: parsedBodyWithSuccess.error,
+            message: "Password has incorrect format",
+            errors: parsedBodyWithSuccess.error.flatten(),
         }, HttpStatusCode.BadRequest);
     }
 
     try{
-        const hashedPass = await Bun.password.hash(password, { algorithm: "bcrypt"});
+        const hashedPass = await Bun.password.hash(body.password, { algorithm: "bcrypt"});
+        console.log(body.password, hashedPass);
+
         await db.update(users)
-            .set({ name, email, password: hashedPass })
-            .where(eq(users.id, userId))
+            .set({ password: hashedPass })
+            .where(eq(users.id, id))
         
-        return c.json({  message: "Updated your user details" }, HttpStatusCode.Ok)
+        return c.json({  message: "Updated your user's password" }, HttpStatusCode.Ok)
     }catch(err){
         return c.json({
-            message: "Error in updating the user's detail",
+            message: "Error in updating the user's password",
+            error: err
+        }, HttpStatusCode.ServerError)
+    }
+});
+
+
+userRouter.put("/user/email", async (c) => {
+    const { id } = await c.get("jwtPayload");
+    const body = await c.req.json();
+
+    const parsedBodyWithSuccess = UpdateEmailSchema.safeParse(body);
+
+    if(!parsedBodyWithSuccess.success){
+        return c.json({
+            message: "Email has incorrect format",
+            errors: parsedBodyWithSuccess.error.flatten(),
+        }, HttpStatusCode.BadRequest);
+    }
+
+    try{
+        await db.update(users)
+            .set({ email: body.email })
+            .where(eq(users.id, id))
+        
+        return c.json({  message: "Updated your user's email" }, HttpStatusCode.Ok)
+    }catch(err){
+        return c.json({
+            message: "Error in updating the user's email",
             error: err
         }, HttpStatusCode.ServerError)
     }
