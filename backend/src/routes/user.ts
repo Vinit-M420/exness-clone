@@ -1,8 +1,8 @@
-import { Hono } from "hono";
 import dotenv from "dotenv";
+import { db } from "../db";
+import { Hono } from "hono";
 import { eq } from "drizzle-orm"
 import { users } from "../db/schema"
-import { db } from "../db";
 import { UpdateEmailSchema, UpdatePwdSchema, UserSigninSchema, UserSignupSchema } from "../schemas/user_schema";
 import { HttpStatusCode } from "../schemas/response";
 import { jwt, sign } from "hono/jwt";
@@ -114,7 +114,7 @@ userRouter.get("/user/me", async (c) =>{
         .where(eq(users.id, userId))
         .then(res => res[0]);
         // console.log(response);
-        return c.json({ content: response }, HttpStatusCode.Ok)
+        return c.json({ response }, HttpStatusCode.Ok)
 
     } catch(err){
         return c.json({
@@ -139,7 +139,7 @@ userRouter.put("/user/password", async (c) => {
 
     try{
         const hashedPass = await Bun.password.hash(body.password, { algorithm: "bcrypt"});
-        console.log(body.password, hashedPass);
+        // console.log(body.password, hashedPass);
 
         await db.update(users)
             .set({ password: hashedPass })

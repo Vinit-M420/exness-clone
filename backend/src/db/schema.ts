@@ -14,7 +14,7 @@ export const users = pgTable("users", {
   email: text("email").notNull().unique(),
   password: text("password").notNull(),
   createdAt: timestamp("created_at").defaultNow(),
-},table => {
+} ,table => {
   return {
     emailIndex: index("emailIndex").on(table.email),
   }
@@ -24,7 +24,16 @@ export const users = pgTable("users", {
 export const wallets = pgTable("wallets", {
   id: uuid("id").defaultRandom().primaryKey(),
   userId: uuid("user_id").notNull().unique(),
-  balance: numeric("balance", { precision: 20, scale: 2 })
-    .notNull()
-    .default("10000"),
+  balance: numeric("balance", { precision: 20, scale: 2 }).notNull().default("10000"),
+});
+
+
+export const wallet_transactions = pgTable("wallet_transactions", {
+  transaction_id: uuid("id").defaultRandom().primaryKey(),
+  userId: uuid("user_id").notNull().unique(),
+  walletId: uuid("user_id").notNull().unique(),
+  status: text("status").notNull().default("pending"),
+  amount: numeric("amount"),
+  balanceAfter: numeric("balance_after"),
+  createAt: timestamp("created_at").defaultNow(),
 });
