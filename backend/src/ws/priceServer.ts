@@ -20,10 +20,10 @@ Bun.serve({
 
   websocket: {
     open(ws) {
-      console.log("Client connected");
+      // console.log("Client connected");
       clients.add(ws);
 
-      // TEMP: auto subscribe for testing
+      // for testing
       subscribeSymbol("AAPL");
     },
 
@@ -31,13 +31,15 @@ Bun.serve({
       const parsed = JSON.parse(message.toString());
 
       if (parsed.type === "subscribe") {
+        // console.log(parsed.symbol);
         subscribeSymbol(parsed.symbol);
+        ws.send("Subscribed to " + parsed.symbol)
       }
     },
 
     close(ws) {
       clients.delete(ws);
-      console.log("Client disconnected");
+      // console.log("Client disconnected");
     },
   },
 });
