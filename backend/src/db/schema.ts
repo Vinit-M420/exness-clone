@@ -30,10 +30,10 @@ export const wallets = pgTable("wallets", {
 
 export const wallet_transactions = pgTable("wallet_transactions", {
   transaction_id: uuid("id").defaultRandom().primaryKey(),
-  userId: uuid("user_id").notNull().unique(),
-  walletId: uuid("user_id").notNull().unique(),
+  walletId: uuid("wallet_id").notNull().unique(),
+  // type: text("type").notNull(),
   status: text("status").notNull().default("pending"),
   amount: numeric("amount"),
   balanceAfter: numeric("balance_after"),
-  createAt: timestamp("created_at").defaultNow(),
+  createdAt: timestamp("created_at").defaultNow(),
 });

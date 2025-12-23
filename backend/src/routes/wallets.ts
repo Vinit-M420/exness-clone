@@ -61,11 +61,18 @@ walletRouter.put('/wallet/deposit', async (c) => {
     const payload = c.get("jwtPayload");
     if (!payload) return c.json({ message: "Unauthorized" }, HttpStatusCode.Unauthorized);
     const userId = payload.id;
-    const body = await c.req.json();
+    const { balance } = await c.req.json();
+
+    if (!balance || Number(balance) <= 0) {
+        return c.json(
+        { message: "Invalid deposit amount" },
+        HttpStatusCode.BadRequest
+        );
+    }
 
     try{
         await db.update(wallets)
-        .set({ balance: body.balance })
+        .set({ balance })
         .where(eq(wallets.userId, userId))
         
         return c.json({ message: "User's Wallet balanced increased" }, HttpStatusCode.Ok)
