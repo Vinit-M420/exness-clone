@@ -15,6 +15,27 @@
       "when": 1765978070568,
       "tag": "0001_mixed_leo",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1766581339238,
+      "tag": "0002_material_alex_power",
+      "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "7",
+      "when": 1766598552524,
+      "tag": "0003_zippy_warpath",
+      "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1766598610785,
+      "tag": "0004_tearful_silver_fox",
+      "breakpoints": true
     }
   ]
 }
