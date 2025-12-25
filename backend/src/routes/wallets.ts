@@ -2,8 +2,8 @@ import dotenv from "dotenv";
 import { db } from "../db";
 import { Hono } from "hono";
 import { jwt } from "hono/jwt";
-import { HttpStatusCode } from "../schemas/response";
-import { wallets } from "../db/schema";
+import { HttpStatusCode } from "../schemas/http_response";
+import { wallet_transactions, wallets } from "../db/schema";
 import { eq } from "drizzle-orm"
 
 dotenv.config()
@@ -26,20 +26,18 @@ walletRouter.get("/", async (c) => {
             .where(eq(wallets.userId, userId))
             .then(res => res[0]);
         
-        if (response){
-            return c.json({ balance: response?.balance }, HttpStatusCode.Ok)
-        }
+        if (response) return c.json({ balance: response?.balance }, HttpStatusCode.Ok)
         else return c.json({ message: "No wallet present for this user" }, HttpStatusCode.BadRequest)
     }
     catch(err){
         return c.json({
             message: "Error in finding the user's wallet balance",
             error: err
-    }, HttpStatusCode.ServerError);
+        }, HttpStatusCode.ServerError);
     }
 })
 
-walletRouter.post('/', async (c) => {
+walletRouter.put('/', async (c) => {
     const payload = c.get("jwtPayload");
     if (!payload) return c.json({ message: "Unauthorized" }, HttpStatusCode.Unauthorized);
     const userId = payload.id;
@@ -57,23 +55,38 @@ walletRouter.post('/', async (c) => {
     }
 })
 
-walletRouter.put('/deposit', async (c) => {
+walletRouter.post('/deposit', async (c) => {
     const payload = c.get("jwtPayload");
     if (!payload) return c.json({ message: "Unauthorized" }, HttpStatusCode.Unauthorized);
     const userId = payload.id;
-    const { balance } = await c.req.json();
 
-    if (!balance || Number(balance) <= 0) {
-        return c.json(
-        { message: "Invalid deposit amount" },
-        HttpStatusCode.BadRequest
-        );
+    const result = await db.select({ id: wallets.id, balance: wallets.balance })
+                    .from(wallets)
+                    .where(eq(wallets.userId, userId))
+                    .then(res => res[0]);
+  
+    if (!result?.id) {
+        return c.json({ message: "No wallet present for this user" }, HttpStatusCode.BadRequest);
     }
 
+    const { balance } = await c.req.json();
+    if (!balance || Number(balance) <= 0) {
+        return c.json({ message: "Invalid deposit amount" }, HttpStatusCode.BadRequest);
+    }
+
+
     try{
-        await db.update(wallets)
-        .set({ balance })
-        .where(eq(wallets.userId, userId))
+        await db.transaction(async (tx) => {
+            await tx.insert(wallet_transactions)
+            .values({ walletId: result.id, type: "deposit", 
+            amount: balance, balanceBefore: result.balance, 
+            balanceAfter: balance + result.balance });
+        
+            await tx.update(wallets)
+            .set({ balance: result.balance + balance })
+            .where(eq(wallets.userId, userId)); 
+        })
+        
         
         return c.json({ message: "User's Wallet balanced increased" }, HttpStatusCode.Ok)
     } catch(err){

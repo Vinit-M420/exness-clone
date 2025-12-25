@@ -4,7 +4,7 @@ import { Hono } from "hono";
 import { eq } from "drizzle-orm"
 import { users } from "../db/schema"
 import { UserSigninSchema, UserSignupSchema } from "../schemas/user_schema";
-import { HttpStatusCode } from "../schemas/response";
+import { HttpStatusCode } from "../schemas/http_response";
 import { sign } from "hono/jwt";
 dotenv.config()
 
