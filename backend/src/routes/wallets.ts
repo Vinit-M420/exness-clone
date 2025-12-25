@@ -4,11 +4,12 @@ import { Hono } from "hono";
 import { jwt } from "hono/jwt";
 import { HttpStatusCode } from "../schemas/http_response";
 import { wallet_transactions, wallets } from "../db/schema";
-import { eq } from "drizzle-orm"
+import { eq, desc } from "drizzle-orm"
+
 
 dotenv.config()
 
-const walletRouter = new Hono()
+const walletRouter = new Hono();
 
 walletRouter.use("/*",
   jwt({
@@ -16,17 +17,16 @@ walletRouter.use("/*",
   })
 )
 
-walletRouter.get("/", async (c) => {
+walletRouter.get("/wallet", async (c) => {
     const payload = c.get("jwtPayload");
     if (!payload) return c.json({ message: "Unauthorized" }, HttpStatusCode.Unauthorized);
     const userId = payload.id;
     try{
-        const response = await db.select({balance: wallets.balance})
+        const response = await db.select({balance: wallets.balance, currency: wallets.currency})
             .from(wallets)
-            .where(eq(wallets.userId, userId))
-            .then(res => res[0]);
+            .where(eq(wallets.userId, userId));
         
-        if (response) return c.json({ balance: response?.balance }, HttpStatusCode.Ok)
+        if (response) return c.json({ response }, HttpStatusCode.Ok)
         else return c.json({ message: "No wallet present for this user" }, HttpStatusCode.BadRequest)
     }
     catch(err){
@@ -36,6 +36,42 @@ walletRouter.get("/", async (c) => {
         }, HttpStatusCode.ServerError);
     }
 })
+
+walletRouter.get("/wallet/transactions", async (c) => {
+    const payload = c.get("jwtPayload");
+    if (!payload) return c.json({ message: "Unauthorized" }, HttpStatusCode.Unauthorized);
+    const userId = payload.id;
+    const wallet_id = await db.select({id: wallets.id})
+        .from(wallets)
+        .where(eq(wallets.userId, userId))
+        .then(res => res[0]?.id);
+
+    if (!wallet_id)
+        return c.json({ message: "No wallet present for this user" }, HttpStatusCode.BadRequest);
+    
+    try{
+        const response = await db.select({
+            type: wallet_transactions.type, 
+            amount: wallet_transactions.amount, 
+            balanceBefore: wallet_transactions.balanceBefore, 
+            balanceAfter: wallet_transactions.balanceAfter,
+            referenceId : wallet_transactions.referenceId,
+            createdAt : wallet_transactions.createdAt,
+            })
+        .from(wallet_transactions)
+        .where(eq(wallet_transactions.walletId, wallet_id))
+        .orderBy(desc(wallet_transactions.createdAt));
+
+        if (response) return c.json({ response }, HttpStatusCode.Ok)
+        else return c.json({ message: "No wallet transactions present" }, HttpStatusCode.BadRequest)
+    } catch(err){
+        return c.json({
+            message: "Error in fetching the wallet transactions",
+            error: err
+        }, HttpStatusCode.ServerError);
+    
+    }
+});
 
 walletRouter.put('/', async (c) => {
     const payload = c.get("jwtPayload");
