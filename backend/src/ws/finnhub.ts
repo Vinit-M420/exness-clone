@@ -20,6 +20,7 @@ export function connectFinnhub(onMessage : (data: any) => void){
     finnhubSocket.onmessage = (event) => {
         const data = JSON.parse(event.data);
         onMessage(data);
+        // console.log(data);
     };
 
     finnhubSocket.onclose = () => {

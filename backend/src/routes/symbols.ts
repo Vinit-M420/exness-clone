@@ -7,4 +7,9 @@ symbolsRouter.get("/top", (c) => {
   return c.json(symbols);
 });
 
+// symbolsRouter.get("/subscribed", (c) => {
+  
+// });
+
+
 export default symbolsRouter;

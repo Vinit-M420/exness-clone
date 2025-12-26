@@ -1,9 +1,11 @@
+import type { subscription } from "../types/subscription";
 import { connectFinnhub, subscribeSymbol } from "./finnhub";
 
 const clients = new Set<Bun.ServerWebSocket>()
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 connectFinnhub((data: any) => {
+
   // Broadcast Finnhub data to all connected clients
   for (const client of clients) {
     client.send(JSON.stringify(data));
@@ -28,13 +30,11 @@ Bun.serve({
     },
 
     message(ws, message) {
-      const parsed = JSON.parse(message.toString());
+      const parsed : subscription = JSON.parse(message.toString());
 
-      if (parsed.type === "subscribe") {
         // console.log(parsed.symbol);
         subscribeSymbol(parsed.symbol);
         ws.send("Subscribed to " + parsed.symbol)
-      }
     },
 
     close(ws) {

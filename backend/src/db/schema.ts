@@ -44,11 +44,12 @@ export const orders = pgTable("orders", {
   symbol: text("symbol").notNull(),
   side: text("side").notNull(),  // buy | sell
   status: text("status").notNull().default("pending"),
+  orderType: text("order_type").notNull(),
   entryPrice : numeric("entry_price", { precision: 20, scale: 2 }).notNull(),
   exitPrice : numeric("exit_price", { precision: 20, scale: 2 }),
   lotSize : numeric("lot_size", { precision: 20, scale: 2 }).notNull(),
   marginUsed: numeric("margin_used", { precision: 20, scale: 2 }).notNull(),
-  pnl: numeric("pnl", { precision: 20, scale: 2 }),
+  pnl: text("pnl"),
   openedAt: timestamp("opened_at").defaultNow(),
   closedAt: timestamp("closed_at"),
 }) 

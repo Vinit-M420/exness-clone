@@ -6,7 +6,6 @@ import { HttpStatusCode } from "../schemas/http_response";
 import { wallet_transactions, wallets } from "../db/schema";
 import { eq, desc } from "drizzle-orm"
 
-
 dotenv.config()
 
 const walletRouter = new Hono();
