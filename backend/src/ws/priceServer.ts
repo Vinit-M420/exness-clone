@@ -25,7 +25,7 @@ Bun.serve({
       // console.log("Client connected");
       clients.add(ws);
 
-      // for testing
+      // for testing, comment it out later
       subscribeSymbol("AAPL");
     },
 
