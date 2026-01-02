@@ -1,2 +1,2 @@
 
-export type subscription = { "type" : "subscription", "symbol" : string}
+export type subscription = { "type" : "subscribe", "symbol" : string}

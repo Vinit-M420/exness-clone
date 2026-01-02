@@ -4,6 +4,15 @@ import { connectFinnhub, subscribeSymbol } from "./finnhub";
 const clients = new Set<Bun.ServerWebSocket>()
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
+function isSubscription(obj: any): obj is subscription {
+  return (
+    obj &&
+    obj.type === "subscribe" &&
+    typeof obj.symbol === "string"
+  );
+}
+
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 connectFinnhub((data: any) => {
 
   // Broadcast Finnhub data to all connected clients
@@ -22,7 +31,7 @@ Bun.serve({
 
   websocket: {
     open(ws) {
-      // console.log("Client connected");
+      console.log("Client connected");
       clients.add(ws);
 
       // for testing, comment it out later
@@ -30,16 +39,18 @@ Bun.serve({
     },
 
     message(ws, message) {
-      const parsed : subscription = JSON.parse(message.toString());
+      const parsed = JSON.parse(message.toString());
+      // console.log("Parsed Message:" , parsed);
 
-        // console.log(parsed.symbol);
+      if (isSubscription(parsed)){
         subscribeSymbol(parsed.symbol);
         ws.send("Subscribed to " + parsed.symbol)
+      }
     },
 
     close(ws) {
       clients.delete(ws);
-      // console.log("Client disconnected");
+      console.log("Client disconnected");
     },
   },
 });

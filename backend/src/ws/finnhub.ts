@@ -1,4 +1,5 @@
 import dotenv from "dotenv";
+import { priceStore } from "./priceStore";
 dotenv.config();
 
 const FINNHUB_WS_URL = "wss://ws.finnhub.io";
@@ -18,9 +19,14 @@ export function connectFinnhub(onMessage : (data: any) => void){
     };
 
     finnhubSocket.onmessage = (event) => {
-        const data = JSON.parse(event.data);
-        onMessage(data);
+        const msg = JSON.parse(event.data);
+        onMessage(msg);
         // console.log(data);
+
+        // Storing the price in the store
+        const symbol = msg.data.s;
+        const price = msg.data.p;
+        priceStore.set(symbol, price);      
     };
 
     finnhubSocket.onclose = () => {

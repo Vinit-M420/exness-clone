@@ -1,6 +1,13 @@
 /// All curated Symbols
 
-export const allsymbols = [
+export const AllSymbols = [
+  "APPL", "MSFT", "GOOGL", "AMZN", "META", "TSLA", "NVDA", "NFLX", "AMD", "INTC",
+  "JPM", "BAC", "GS", "V", "MA", "BRK.B", "SPY", "QQQ", "DIA",
+  "KO", "PEP", "MCD", "NKE", "SBUX", "DIS", "WMT", "COST", 
+  "BINANCE:BTCUSDT", "BINANCE:ETHUSDT", "BINANCE:BNBUSDT", "BINANCE:SOLUSDT", "BINANCE:XRPUSDT", "BINANCE:ADAUSDT", "BINANCE:DOGEUSDT", "BINANCE:AVAXUSDT", "BINANCE:DOTUSDT", "BINANCE:MATICUSDT"
+] as const;
+
+export const AllSymbols_Metadata = [
   // =========================
   // 📈 US Stocks (Tech & Large Cap)
   // =========================
@@ -54,3 +61,4 @@ export const allsymbols = [
   { symbol: "BINANCE:DOTUSDT", name: "Polkadot / USDT", type: "crypto" },
   { symbol: "BINANCE:MATICUSDT", name: "Polygon / USDT", type: "crypto" },
 ];
+
