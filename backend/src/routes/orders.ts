@@ -1,10 +1,9 @@
-/* eslint-disable @typescript-eslint/no-unused-vars */
 import dotenv from "dotenv";
 import { db } from "../db";
 import { Hono } from "hono";
 import { jwt } from "hono/jwt";
 import { HttpStatusCode } from "../schemas/http_response";
-import { wallets } from "../db/schema";
+import { orders, wallet_transactions, wallets } from "../db/schema";
 import { eq } from "drizzle-orm"
 import { MarketOrderRequestSchema } from "../schemas/market_order";
 import { priceStore } from "../ws/priceStore";
@@ -66,12 +65,61 @@ orderRouter.post("/", async (c) => {
     );
   }
 
+  const leverage = 10 // hardcoded for now
+  const positionVal = price * lotSize;
+  const requiredMargin = positionVal / leverage
+
+  if (Number(balance) < requiredMargin) {
+    return c.json({ message: "Insufficient balance", balance, requiredMargin }, 
+      HttpStatusCode.UnprocessableEntity);
+  }
+
   try{
+    await db.transaction(async (tx) => {
+      const insertedOrders = await tx
+        .insert(orders)
+        .values({
+          userId,
+          walletId,
+          symbol,
+          side,
+          status: "open",
+          orderType,
+          entryPrice: price.toString(),
+          exitPrice: null,
+          lotSize: lotSize.toString(),
+          marginUsed: requiredMargin.toString(),
+        }).returning();
+
+      if (insertedOrders.length === 0) {
+        throw new Error("Order insertion failed");
+      }
       
-      // db.insert(orders)
-      // .values({ userId: userId, walletId: walletId,  })
+      const balanceBefore = Number(balance);
+      const balanceAfter = balanceBefore - requiredMargin;  
+      
+      await tx.insert(wallet_transactions)
+        .values({ walletId,
+          type: "trade_margin_lock", 
+          amount: requiredMargin.toString(), 
+          balanceBefore: balanceBefore.toString(), 
+          balanceAfter: balanceAfter.toString(), 
+          referenceId: order.id });
+
+      await tx.update(wallets)
+          .set({balance: balanceAfter.toString()})
+          .where(eq(wallets.id, walletId))
+
+    });
+   
+    return c.json({ message: "Market order placed", order: order.id },
+      HttpStatusCode.Created
+    );
+
   }
   catch(e){
-    
+    return c.json({ message: "Error in creating the order", error: e}, 
+      HttpStatusCode.ServerError
+    );
   }
 });

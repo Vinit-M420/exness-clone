@@ -28,7 +28,7 @@ export const wallets = pgTable("wallets", {
 export const wallet_transactions = pgTable("wallet_transactions", {
   id: uuid("id").defaultRandom().primaryKey(),
   walletId: uuid("wallet_id").notNull().references(() => wallets.id),
-  type: text("type").notNull(),  // deposit | withdrawal | trade_profit | trade_loss | fee  
+  type: text("type").notNull(),  // deposit | withdrawal | trade_profit | trade_loss | fee | margin 
   // status: text("status").notNull().default("pending"),
   amount: numeric("amount", { precision: 20, scale: 2 }).notNull(),
   balanceBefore: numeric("balance_before", { precision: 20, scale: 2 }).notNull(),
