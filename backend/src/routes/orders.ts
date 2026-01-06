@@ -6,7 +6,9 @@ import { eq, and } from "drizzle-orm"
 import { HttpStatusCode } from "../schemas/http_response";
 import { orders, wallet_transactions, wallets } from "../db/schema";
 import { MarketOrderRequestSchema } from "../schemas/market_order";
-import { priceStore } from "../ws/priceStore";
+import { get } from "../ws/priceStore";
+import { subscribeSymbol, unsubscribeSymbol } from "../ws/finnhub";
+import { addSymbols, removeSymbols } from "../ws/activeSymbols";
 dotenv.config()
 
 const orderRouter = new Hono();
@@ -17,7 +19,7 @@ orderRouter.use("/*",
   })
 )
 
-orderRouter.use("/*", jwt({ secret: process.env.JWT_SECRET! }), async (c, next) => {
+orderRouter.use("/*", async (c, next) => {
   const payload = c.get("jwtPayload");
   if (!payload?.id) return c.json({ message: "Unauthorized" }, HttpStatusCode.Unauthorized);
   const userId = payload.id;
@@ -65,14 +67,13 @@ orderRouter.get("/all", async (c) => {
 
 
 /// Market Order
-orderRouter.post("/market", async (c) => {
+orderRouter.post("/market/order", async (c) => {
   const userId = c.get("userId");
   if (!userId) {
     return c.json({ message: "User context missing" }, HttpStatusCode.ServerError);
   }
   const walletId = c.get("walletId");
   const balance = c.get("walletBalance");
-
   // return c.json({ userId, walletId, balance }, HttpStatusCode.Ok);
 
   const order = await c.req.json();
@@ -87,7 +88,7 @@ orderRouter.post("/market", async (c) => {
     );
   }
   const { symbol, side, orderType, lotSize } = parsed.data;
-  const price = priceStore.get(symbol);
+  const price = get(symbol);
 
   if (!price) {
     return c.json(
@@ -143,8 +144,12 @@ orderRouter.post("/market", async (c) => {
     await tx.update(wallets)
       .set({ balance: balanceAfter.toString() })
       .where(eq(wallets.id, walletId));
+    
   });
-   
+
+  const isFirst = addSymbols(symbol);
+  if (isFirst) subscribeSymbol(symbol); 
+
   return c.json({ 
     message: "Market order placed"
   }, HttpStatusCode.Created);
@@ -157,5 +162,84 @@ orderRouter.post("/market", async (c) => {
     }, HttpStatusCode.ServerError);
   }
 });
+
+orderRouter.put("/:id/exit", async (c) => {
+  const userId = c.get("userId");
+  if (!userId) {
+    return c.json({ message: "User context missing" }, HttpStatusCode.ServerError);
+  }
+  const walletId = c.get("walletId");
+  const balance = c.get("walletBalance");
+  // return c.json({ userId, walletId, balance }, HttpStatusCode.Ok);
+
+  const orderId = c.req.param("id");
+  const isOrderPresent = await db.select().from(orders).where(eq(orders.id, orderId)).then(res => res[0]);
+  if (!isOrderPresent) return c.json({ message: "Order not found" }, HttpStatusCode.BadRequest);
+
+  const price = get(isOrderPresent.symbol);
+ 
+  if (!price) {
+    return c.json(
+      { message: "Price not available in the store for this symbol" },
+      HttpStatusCode.ServiceUnavailable
+    );
+  }
+
+  try{
+  await db.transaction(async (tx) => {
+    const entry = Number(isOrderPresent.entryPrice);
+    const qty = Number(isOrderPresent.lotSize);
+    const pnl =
+      isOrderPresent.side === "buy"
+        ? (price - entry) * qty
+        : (entry - price) * qty;
+
+    const closedOrder = await tx.update(orders)
+      .set({ side: "sell", 
+        status: "closed", 
+        exitPrice: price.toString(), 
+        pnl: pnl.toString() })
+      .where(and(
+              eq(orders.id, orderId),
+              eq(orders.userId, userId),
+              eq(orders.status, "open")
+            )
+        );
+
+    // const [closedOrder] = closedOrders;
+    if (!closedOrder) {
+      throw new Error("Order insertion failed");
+    }
+
+    const balanceBefore = Number(balance);
+    const releaseAmount = Number(isOrderPresent.marginUsed) + pnl;
+    const balanceAfter = balanceBefore + releaseAmount; 
+    
+    await tx.insert(wallet_transactions)
+        .values({ walletId,
+        type: "sell", 
+        amount: (isOrderPresent.marginUsed + Number(isOrderPresent.pnl)).toString(),
+        balanceBefore: balanceBefore.toString(), 
+        balanceAfter: balanceAfter.toString(), 
+        referenceId: orderId })
+      
+    
+    await tx.update(wallets)
+          .set({ balance: balanceAfter.toString() })
+         .where(eq(wallets.id, walletId));
+  
+  });
+    const shouldUnsub = removeSymbols(isOrderPresent.symbol);
+    if (shouldUnsub) unsubscribeSymbol(isOrderPresent.symbol);
+    
+    return c.json({ message: "Order closed" }, HttpStatusCode.Ok);
+
+  }catch(e){
+    console.error("Transaction error:", e);
+    return c.json({ message: "Error in closing the order", 
+      error: e instanceof Error? e.message : String(e) }, HttpStatusCode.ServerError);
+  }
+}
+)
 
 export default orderRouter

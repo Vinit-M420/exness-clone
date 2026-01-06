@@ -1,5 +1,5 @@
 import dotenv from "dotenv";
-import { priceStore } from "./priceStore";
+import { set } from "./priceStore";
 dotenv.config();
 
 const FINNHUB_WS_URL = "wss://ws.finnhub.io";
@@ -28,15 +28,15 @@ export function connectFinnhub(onMessage : (data: any) => void){
         }
 
         // Storing the last price of the message in the store
-        const latestTrade = msg.data[msg.data.length - 1];
-        const symbol = latestTrade.s;
-        const price = latestTrade.p;
-        priceStore.set(symbol, price);  
+        // const latestTrade = msg.data[msg.data.length - 1];
+        // const symbol = latestTrade.s;
+        // const price = latestTrade.p;
+        // set(symbol, price);  
         
-        // for (const trade of msg.data) {
-        // // Update last price
-        // priceStore.set(trade.s, trade.p);
-        // }
+        for (const trade of msg.data) {
+        // Update last price
+        set(trade.s, trade.p);
+        }
     };
 
     finnhubSocket.onclose = () => {
@@ -56,3 +56,10 @@ export function subscribeSymbol(symbol: string) {
     JSON.stringify({ type: "subscribe", symbol })
   );
 }
+
+export function unsubscribeSymbol(symbol: string) {
+  finnhubSocket?.send(
+    JSON.stringify({ type: "unsubscribe", symbol })
+  );
+}
+
