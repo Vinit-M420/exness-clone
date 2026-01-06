@@ -35,11 +35,13 @@ Bun.serve({
       clients.add(ws);
 
       // for testing, comment it out later
-      subscribeSymbol("AAPL");
+      // subscribeSymbol("AAPL");
     },
 
     message(ws, message) {
-      const parsed = JSON.parse(message.toString());
+      const raw = message.toString();
+      // console.log("RAW MESSAGE:", raw);
+      const parsed = JSON.parse(raw);
       // console.log("Parsed Message:" , parsed);
 
       if (isSubscription(parsed)){

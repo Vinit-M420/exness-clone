@@ -2,9 +2,9 @@ import dotenv from "dotenv";
 import { db } from "../db";
 import { Hono } from "hono";
 import { jwt } from "hono/jwt";
+import { eq, and } from "drizzle-orm"
 import { HttpStatusCode } from "../schemas/http_response";
 import { orders, wallet_transactions, wallets } from "../db/schema";
-import { eq } from "drizzle-orm"
 import { MarketOrderRequestSchema } from "../schemas/market_order";
 import { priceStore } from "../ws/priceStore";
 dotenv.config()
@@ -17,10 +17,11 @@ orderRouter.use("/*",
   })
 )
 
-orderRouter.use("/*", async (c, next) => {
+orderRouter.use("/*", jwt({ secret: process.env.JWT_SECRET! }), async (c, next) => {
   const payload = c.get("jwtPayload");
-  if (!payload) return c.json({ message: "Unauthorized" }, HttpStatusCode.Unauthorized);
+  if (!payload?.id) return c.json({ message: "Unauthorized" }, HttpStatusCode.Unauthorized);
   const userId = payload.id;
+
   const wallet = await db
     .select({ id: wallets.id, balance: wallets.balance })
     .from(wallets)
@@ -35,14 +36,44 @@ orderRouter.use("/*", async (c, next) => {
   c.set("walletBalance", wallet.balance);
 
   await next();
-  
 })
 
-/// Market Order
-orderRouter.post("/", async (c) => {
+/// Get all orders
+orderRouter.get("/all", async (c) => {
   const userId = c.get("userId");
+  if (!userId) {
+    return c.json({ message: "User context missing" }, HttpStatusCode.ServerError);
+  }
   const walletId = c.get("walletId");
   const balance = c.get("walletBalance");
+
+  const allOrders = await db.select().from(orders)
+    .where(
+        and(
+            eq(orders.userId, userId),
+            eq(orders.walletId, walletId)
+        )
+    );
+
+  if (allOrders.length === 0 || !allOrders) {
+    return c.json({ message: "No orders found" }, HttpStatusCode.BadRequest);
+  }
+  else{
+    return c.json({orders: allOrders, balance}, HttpStatusCode.Ok);
+  }
+});
+
+
+/// Market Order
+orderRouter.post("/market", async (c) => {
+  const userId = c.get("userId");
+  if (!userId) {
+    return c.json({ message: "User context missing" }, HttpStatusCode.ServerError);
+  }
+  const walletId = c.get("walletId");
+  const balance = c.get("walletBalance");
+
+  // return c.json({ userId, walletId, balance }, HttpStatusCode.Ok);
 
   const order = await c.req.json();
   const parsed = MarketOrderRequestSchema.safeParse(order);
@@ -74,52 +105,57 @@ orderRouter.post("/", async (c) => {
       HttpStatusCode.UnprocessableEntity);
   }
 
-  try{
-    await db.transaction(async (tx) => {
-      const insertedOrders = await tx
-        .insert(orders)
-        .values({
-          userId,
-          walletId,
-          symbol,
-          side,
-          status: "open",
-          orderType,
-          entryPrice: price.toString(),
-          exitPrice: null,
-          lotSize: lotSize.toString(),
-          marginUsed: requiredMargin.toString(),
-        }).returning();
+  try {
+  await db.transaction(async (tx) => {
+    const insertedOrders = await tx
+      .insert(orders)
+      .values({
+        userId,
+        walletId,
+        symbol,
+        side,
+        status: "open",
+        orderType,
+        entryPrice: price.toString(),
+        exitPrice: null,
+        lotSize: lotSize.toString(),
+        marginUsed: requiredMargin.toString(),
+      }).returning();
 
-      if (insertedOrders.length === 0) {
-        throw new Error("Order insertion failed");
-      }
-      
-      const balanceBefore = Number(balance);
-      const balanceAfter = balanceBefore - requiredMargin;  
-      
-      await tx.insert(wallet_transactions)
-        .values({ walletId,
-          type: "trade_margin_lock", 
-          amount: requiredMargin.toString(), 
-          balanceBefore: balanceBefore.toString(), 
-          balanceAfter: balanceAfter.toString(), 
-          referenceId: order.id });
+    const [insertedOrder] = insertedOrders;
+    if (!insertedOrder) {
+      throw new Error("Order insertion failed");
+    }
+    
+    const balanceBefore = Number(balance);
+    const balanceAfter = balanceBefore - requiredMargin;  
+    
+    await tx.insert(wallet_transactions)
+      .values({ 
+        walletId,
+        type: "trade_margin_lock", 
+        amount: requiredMargin.toString(), 
+        balanceBefore: balanceBefore.toString(), 
+        balanceAfter: balanceAfter.toString(), 
+        referenceId: insertedOrder.id
+      });
 
-      await tx.update(wallets)
-          .set({balance: balanceAfter.toString()})
-          .where(eq(wallets.id, walletId))
-
-    });
+    await tx.update(wallets)
+      .set({ balance: balanceAfter.toString() })
+      .where(eq(wallets.id, walletId));
+  });
    
-    return c.json({ message: "Market order placed", order: order.id },
-      HttpStatusCode.Created
-    );
+  return c.json({ 
+    message: "Market order placed"
+  }, HttpStatusCode.Created);
 
-  }
-  catch(e){
-    return c.json({ message: "Error in creating the order", error: e}, 
-      HttpStatusCode.ServerError
-    );
+} catch(e) {
+    console.error("Transaction error:", e);
+    return c.json({ 
+      message: "Error in creating the order", 
+      error: e instanceof Error ? e.message : String(e)
+    }, HttpStatusCode.ServerError);
   }
 });
+
+export default orderRouter

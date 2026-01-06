@@ -23,10 +23,20 @@ export function connectFinnhub(onMessage : (data: any) => void){
         onMessage(msg);
         // console.log(data);
 
-        // Storing the price in the store
-        const symbol = msg.data.s;
-        const price = msg.data.p;
-        priceStore.set(symbol, price);      
+        if (msg.type !== "trade" || !Array.isArray(msg.data) || msg.data.length === 0) {
+            return;
+        }
+
+        // Storing the last price of the message in the store
+        const latestTrade = msg.data[msg.data.length - 1];
+        const symbol = latestTrade.s;
+        const price = latestTrade.p;
+        priceStore.set(symbol, price);  
+        
+        // for (const trade of msg.data) {
+        // // Update last price
+        // priceStore.set(trade.s, trade.p);
+        // }
     };
 
     finnhubSocket.onclose = () => {

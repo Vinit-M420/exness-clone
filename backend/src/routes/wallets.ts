@@ -16,7 +16,7 @@ walletRouter.use("/*",
   })
 )
 
-walletRouter.get("/wallet", async (c) => {
+walletRouter.get("/get", async (c) => {
     const payload = c.get("jwtPayload");
     if (!payload) return c.json({ message: "Unauthorized" }, HttpStatusCode.Unauthorized);
     const userId = payload.id;
@@ -36,7 +36,7 @@ walletRouter.get("/wallet", async (c) => {
     }
 })
 
-walletRouter.get("/wallet/transactions", async (c) => {
+walletRouter.get("/transactions", async (c) => {
     const payload = c.get("jwtPayload");
     if (!payload) return c.json({ message: "Unauthorized" }, HttpStatusCode.Unauthorized);
     const userId = payload.id;
