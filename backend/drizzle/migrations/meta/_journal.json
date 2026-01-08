@@ -43,6 +43,13 @@
       "when": 1766768741132,
       "tag": "0005_tan_lethal_legion",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1767777037695,
+      "tag": "0006_wonderful_slyde",
+      "breakpoints": true
     }
   ]
 }

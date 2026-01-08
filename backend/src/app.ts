@@ -1,4 +1,4 @@
-import { Hono } from 'hono'
+import { Hono } from 'hono';
 import userRouter from "./routes/user"
 import walletRouter from './routes/wallets';
 import symbolsRouter from './routes/symbols';

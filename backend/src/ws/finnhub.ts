@@ -1,5 +1,6 @@
 import dotenv from "dotenv";
 import { set } from "./priceStore";
+import { priceWatcher } from "./priceWatcher";
 dotenv.config();
 
 const FINNHUB_WS_URL = "wss://ws.finnhub.io";
@@ -7,7 +8,7 @@ const FINNHUB_WS_URL = "wss://ws.finnhub.io";
 let finnhubSocket: WebSocket | null = null;
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
-export function connectFinnhub(onMessage : (data: any) => void){
+export async function connectFinnhub(onMessage : (data: any) => void){
     if (finnhubSocket) return;
 
     finnhubSocket = new WebSocket(
@@ -17,6 +18,8 @@ export function connectFinnhub(onMessage : (data: any) => void){
     finnhubSocket.onopen = () => {
         console.log("Connected to Finnhub WS");
     };
+
+    await priceWatcher();
 
     finnhubSocket.onmessage = (event) => {
         const msg = JSON.parse(event.data);
@@ -29,13 +32,11 @@ export function connectFinnhub(onMessage : (data: any) => void){
 
         // Storing the last price of the message in the store
         // const latestTrade = msg.data[msg.data.length - 1];
-        // const symbol = latestTrade.s;
-        // const price = latestTrade.p;
-        // set(symbol, price);  
+        // set(latestTrade.s, latestTrade.p);  
         
         for (const trade of msg.data) {
-        // Update last price
-        set(trade.s, trade.p);
+          set(trade.s, trade.p);  // Update last price
+          
         }
     };
 

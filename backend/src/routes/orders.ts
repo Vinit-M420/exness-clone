@@ -2,11 +2,11 @@ import dotenv from "dotenv";
 import { db } from "../db";
 import { Hono } from "hono";
 import { jwt } from "hono/jwt";
+import { get } from "../ws/priceStore";
 import { eq, and } from "drizzle-orm"
 import { HttpStatusCode } from "../schemas/http_response";
 import { orders, wallet_transactions, wallets } from "../db/schema";
 import { MarketOrderRequestSchema } from "../schemas/market_order";
-import { get } from "../ws/priceStore";
 import { subscribeSymbol, unsubscribeSymbol } from "../ws/finnhub";
 import { addSymbols, removeSymbols } from "../ws/activeSymbols";
 dotenv.config()
@@ -14,9 +14,7 @@ dotenv.config()
 const orderRouter = new Hono();
 
 orderRouter.use("/*",
-  jwt({
-    secret: process.env.JWT_SECRET!,
-  })
+  jwt({ secret: process.env.JWT_SECRET! })
 )
 
 orderRouter.use("/*", async (c, next) => {
@@ -36,7 +34,6 @@ orderRouter.use("/*", async (c, next) => {
   c.set("userId", userId);
   c.set("walletId", wallet.id);
   c.set("walletBalance", wallet.balance);
-
   await next();
 })
 
@@ -87,7 +84,7 @@ orderRouter.post("/market/order", async (c) => {
       HttpStatusCode.BadRequest
     );
   }
-  const { symbol, side, orderType, lotSize } = parsed.data;
+  const { symbol, side, lotSize } = parsed.data;
   const price = get(symbol);
 
   if (!price) {
@@ -116,7 +113,7 @@ orderRouter.post("/market/order", async (c) => {
         symbol,
         side,
         status: "open",
-        orderType,
+        orderType : "market",
         entryPrice: price.toString(),
         exitPrice: null,
         lotSize: lotSize.toString(),
@@ -124,9 +121,7 @@ orderRouter.post("/market/order", async (c) => {
       }).returning();
 
     const [insertedOrder] = insertedOrders;
-    if (!insertedOrder) {
-      throw new Error("Order insertion failed");
-    }
+    if (!insertedOrder) throw new Error("Order insertion failed");   
     
     const balanceBefore = Number(balance);
     const balanceAfter = balanceBefore - requiredMargin;  
@@ -144,15 +139,13 @@ orderRouter.post("/market/order", async (c) => {
     await tx.update(wallets)
       .set({ balance: balanceAfter.toString() })
       .where(eq(wallets.id, walletId));
-    
   });
 
   const isFirst = addSymbols(symbol);
   if (isFirst) subscribeSymbol(symbol); 
 
   return c.json({ 
-    message: "Market order placed"
-  }, HttpStatusCode.Created);
+    message: "Market order placed"}, HttpStatusCode.Created);
 
 } catch(e) {
     console.error("Transaction error:", e);
@@ -163,13 +156,14 @@ orderRouter.post("/market/order", async (c) => {
   }
 });
 
-orderRouter.put("/:id/exit", async (c) => {
+/// Order Close
+orderRouter.put("/exit/:id", async (c) => {
   const userId = c.get("userId");
   if (!userId) {
     return c.json({ message: "User context missing" }, HttpStatusCode.ServerError);
   }
   const walletId = c.get("walletId");
-  const balance = c.get("walletBalance");
+  // const balance = c.get("walletBalance");
   // return c.json({ userId, walletId, balance }, HttpStatusCode.Ok);
 
   const orderId = c.req.param("id");
@@ -195,10 +189,11 @@ orderRouter.put("/:id/exit", async (c) => {
         : (entry - price) * qty;
 
     const closedOrder = await tx.update(orders)
-      .set({ side: "sell", 
+      .set({ 
         status: "closed", 
         exitPrice: price.toString(), 
-        pnl: pnl.toString() })
+        pnl: pnl.toString(),
+        closedAt: new Date() })
       .where(and(
               eq(orders.id, orderId),
               eq(orders.userId, userId),
@@ -206,23 +201,25 @@ orderRouter.put("/:id/exit", async (c) => {
             )
         );
 
-    // const [closedOrder] = closedOrders;
-    if (!closedOrder) {
-      throw new Error("Order insertion failed");
-    }
+    if (!closedOrder) throw new Error("Order closing failed");   
+    
+    const walletRow = await tx
+      .select({ balance: wallets.balance })
+      .from(wallets)
+      .where(eq(wallets.id, walletId))
+      .then(r => r[0]);
 
-    const balanceBefore = Number(balance);
+    const balanceBefore = Number(walletRow);
     const releaseAmount = Number(isOrderPresent.marginUsed) + pnl;
     const balanceAfter = balanceBefore + releaseAmount; 
     
     await tx.insert(wallet_transactions)
         .values({ walletId,
-        type: "sell", 
-        amount: (isOrderPresent.marginUsed + Number(isOrderPresent.pnl)).toString(),
+        type: "trade_close", 
+        amount: releaseAmount.toString(),
         balanceBefore: balanceBefore.toString(), 
         balanceAfter: balanceAfter.toString(), 
-        referenceId: orderId })
-      
+        referenceId: orderId })   
     
     await tx.update(wallets)
           .set({ balance: balanceAfter.toString() })
@@ -239,7 +236,41 @@ orderRouter.put("/:id/exit", async (c) => {
     return c.json({ message: "Error in closing the order", 
       error: e instanceof Error? e.message : String(e) }, HttpStatusCode.ServerError);
   }
-}
-)
+});
+
+// Limit Order
+orderRouter.post("/limit", async (c) => {
+  const userId : string = c.get("userId");
+  if (!userId) return c.json({ message: "User context missing" }, HttpStatusCode.ServerError);
+  const walletId = c.get("walletId");
+  // const balance = c.get("walletBalance");
+  // return c.json({ userId, walletId, balance }, HttpStatusCode.Ok);
+
+  const data = await c.req.json();
+  const { symbol, side, lotSize, triggerPrice } = data;
+
+  try{
+    await db.transaction(async (tx) => {
+      // const limitOrder = 
+      tx.insert(orders)
+      .values({ userId, walletId, symbol, side,
+            status: "pending",
+            orderType: "limit", 
+            triggerPrice, 
+            entryPrice: "0",
+            lotSize, 
+            marginUsed: "0",
+            openedAt: null 
+       }).returning();    
+    }
+  );
+  return c.json({ message: "Limit order filed" }, HttpStatusCode.Created);
+  }
+  catch(e){
+    return c.json({ message: "Limit order request failed", error: e }, HttpStatusCode.BadRequest);
+  }
+
+
+})
 
 export default orderRouter

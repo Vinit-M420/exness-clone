@@ -24,7 +24,6 @@ export const wallets = pgTable("wallets", {
   balance: numeric("balance", { precision: 20, scale: 2 }).notNull().default("10000"),
 });
 
-
 export const wallet_transactions = pgTable("wallet_transactions", {
   id: uuid("id").defaultRandom().primaryKey(),
   walletId: uuid("wallet_id").notNull().references(() => wallets.id),
@@ -45,6 +44,7 @@ export const orders = pgTable("orders", {
   side: text("side").notNull(),  // buy | sell
   status: text("status").notNull().default("pending"),
   orderType: text("order_type").notNull(),
+  triggerPrice: numeric("trigger_price", { precision: 20, scale: 2 }),
   entryPrice : numeric("entry_price", { precision: 20, scale: 2 }).notNull(),
   exitPrice : numeric("exit_price", { precision: 20, scale: 2 }),
   lotSize : numeric("lot_size", { precision: 20, scale: 2 }).notNull(),

@@ -1,4 +1,3 @@
-// priceStore.ts
 const priceStore = new Map<string, number>();
 
 export function set(symbol: string, price: number) {
