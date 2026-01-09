@@ -9,6 +9,7 @@ import { orders, wallet_transactions, wallets } from "../db/schema";
 import { MarketOrderRequestSchema } from "../schemas/market_order";
 import { subscribeSymbol, unsubscribeSymbol } from "../ws/finnhub";
 import { addSymbols, removeSymbols } from "../ws/activeSymbols";
+import { redisClient } from "../redis/client";
 dotenv.config()
 
 const orderRouter = new Hono();
@@ -251,17 +252,25 @@ orderRouter.post("/limit", async (c) => {
 
   try{
     await db.transaction(async (tx) => {
-      // const limitOrder = 
-      tx.insert(orders)
-      .values({ userId, walletId, symbol, side,
-            status: "pending",
-            orderType: "limit", 
-            triggerPrice, 
-            entryPrice: "0",
-            lotSize, 
-            marginUsed: "0",
-            openedAt: null 
-       }).returning();    
+      const [insertedOrder] = await tx.insert(orders)
+      .values({ 
+        userId, 
+        walletId, 
+        symbol, 
+        side,
+        status: "pending",
+        orderType: "limit", 
+        triggerPrice, 
+        entryPrice: "0",
+        lotSize, 
+        marginUsed: "0",
+        openedAt: null 
+      })
+      .returning();
+
+    if (!insertedOrder) throw new Error("Order insertion failed");
+    await redisClient.zadd(`trigger:${symbol}:${side.toUpperCase()}`, 
+      Number(triggerPrice), insertedOrder.id);
     }
   );
   return c.json({ message: "Limit order filed" }, HttpStatusCode.Created);
