@@ -1,25 +1,36 @@
 import { db } from "../db";
 import { eq, and } from "drizzle-orm"
 import { orders, wallet_transactions, wallets } from "../db/schema";
+import { redisClient } from "../redis/client";
 
 
-export async function OrderEngine(orderId : string, currentPrice : number){
+export async function OrderEngine(orderId : string, symbol: string, side: string, currentPrice : number){
+
+    const triggerPrice = await redisClient.zscore(
+        `trigger:${symbol}:${side.toUpperCase()}`,
+        orderId
+    );
+    if (!triggerPrice) return;
+    if (side === "BUY" && currentPrice < triggerPrice) return;  
+    if (side === "SELL" && currentPrice > triggerPrice) return;
+
 
     const order = await db.select().from(orders).where(eq(orders.id, orderId)).then(res => res[0]);
     if (!order) return;
     if (order.status !== "pending" || order.orderType !== "limit") return;
     if (order.side !== "buy" && order.side !== "sell") return;
 
-    // const balance  = await db.select({ balance: wallets.balance })
-    //     .from(wallets).where(eq(wallets.id, order.walletId)).then(res => res[0]);
-    // if (Number(balance?.balance) < requiredMargin) throw new Error("Insufficient balance");
-    // if (!balance) return;
+    const balance  = await db.select({ balance: wallets.balance })
+        .from(wallets).where(eq(wallets.id, order.walletId)).then(res => res[0]);
+
+    if (!balance) return;
 
     const leverage = 10 // hardcoded for now
     const positionVal = currentPrice * Number(order.lotSize);
     const requiredMargin = positionVal / leverage
+    if (Number(balance?.balance) < requiredMargin) throw new Error("Insufficient balance");
 
-    await db.transaction(async (tx) => {
+    await db.transaction(async (tx) => {    
         const wallet  = await db.select({ balance: wallets.balance })
             .from(wallets).where(eq(wallets.id, order.walletId)).then(res => res[0]);
 

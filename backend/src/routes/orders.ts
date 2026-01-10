@@ -140,6 +140,7 @@ orderRouter.post("/market/order", async (c) => {
     await tx.update(wallets)
       .set({ balance: balanceAfter.toString() })
       .where(eq(wallets.id, walletId));
+    await redisClient.sadd("active:symbols", symbol);
   });
 
   const isFirst = addSymbols(symbol);
@@ -271,6 +272,7 @@ orderRouter.post("/limit", async (c) => {
     if (!insertedOrder) throw new Error("Order insertion failed");
     await redisClient.zadd(`trigger:${symbol}:${side.toUpperCase()}`, 
       Number(triggerPrice), insertedOrder.id);
+    await redisClient.sadd("active:symbols", symbol);
     }
   );
   return c.json({ message: "Limit order filed" }, HttpStatusCode.Created);

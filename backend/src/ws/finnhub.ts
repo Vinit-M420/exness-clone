@@ -19,9 +19,7 @@ export async function connectFinnhub(onMessage : (data: any) => void){
         console.log("Connected to Finnhub WS");
     };
 
-    await priceWatcher();
-
-    finnhubSocket.onmessage = (event) => {
+    finnhubSocket.onmessage = async (event) => {
         const msg = JSON.parse(event.data);
         onMessage(msg);
         // console.log(data);
@@ -31,13 +29,13 @@ export async function connectFinnhub(onMessage : (data: any) => void){
         }
 
         // Storing the last price of the message in the store
-        // const latestTrade = msg.data[msg.data.length - 1];
-        // set(latestTrade.s, latestTrade.p);  
-        
-        for (const trade of msg.data) {
-          set(trade.s, trade.p);  // Update last price
-          
-        }
+        const latestTrade = msg.data[msg.data.length - 1];
+        set(latestTrade.s, latestTrade.p);  
+        await priceWatcher(latestTrade.s, latestTrade.p);
+
+        // for (const trade of msg.data) {
+        //   set(trade.s, trade.p);  // Update last price     
+        // }       
     };
 
     finnhubSocket.onclose = () => {

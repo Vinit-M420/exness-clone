@@ -1,3 +1,4 @@
+import { redisClient } from "../redis/client";
 import type { subscription } from "../types/subscription";
 import { connectFinnhub, subscribeSymbol } from "./finnhub";
 
@@ -30,17 +31,21 @@ Bun.serve({
   },
 
   websocket: {
-    open(ws) {
+    async open(ws) {
       console.log("Client connected");
       clients.add(ws);
 
-      // for testing, comment it out later
-      // subscribeSymbol("AAPL");
+      // subscribeSymbol("AAPL"); // for testing, comment it out later
+      
+      const symbols = await redisClient.smembers("active:symbols");
+
+      for (const symbol of symbols) {
+        subscribeSymbol(symbol);
+      };
     },
 
     message(ws, message) {
       const raw = message.toString();
-      // console.log("RAW MESSAGE:", raw);
       const parsed = JSON.parse(raw);
       // console.log("Parsed Message:" , parsed);
 
