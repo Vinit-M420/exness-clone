@@ -54,15 +54,23 @@ userRouter.put("/password", async (c) => {
     }
 
     try{
-        const hashedPass = await Bun.password.hash(body.password, { algorithm: "bcrypt"});
-        // console.log(body.password, hashedPass);
+        const [user] = await db
+        .select({ password: users.password })
+        .from(users)
+        .where(eq(users.id, id))
+        .limit(1);
 
-        await db.update(users)
-            .set({ password: hashedPass })
-            .where(eq(users.id, id))
+        if (!user) return c.json({ message: "User not found" }, HttpStatusCode.NotFound);
+
+        const isSame = await Bun.password.verify(body.password, user.password);
+        if (isSame) return c.json({ message: "New password must be different" }, HttpStatusCode.BadRequest);
+
+        const newHash = await Bun.password.hash(body.password);
+        await db.update(users).set({ password: newHash }).where(eq(users.id, id));
         
         return c.json({  message: "Updated your user's password" }, HttpStatusCode.Ok)
-    }catch(err){
+    }
+    catch(err){
         return c.json({
             message: "Error in updating the user's password",
             error: err

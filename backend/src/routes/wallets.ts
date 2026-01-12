@@ -23,7 +23,8 @@ walletRouter.get("/get", async (c) => {
     try{
         const response = await db.select({balance: wallets.balance, currency: wallets.currency})
             .from(wallets)
-            .where(eq(wallets.userId, userId));
+            .where(eq(wallets.userId, userId))
+            .then(res => res[0]);
         
         if (response) return c.json({ response }, HttpStatusCode.Ok)
         else return c.json({ message: "No wallet present for this user" }, HttpStatusCode.BadRequest)
@@ -47,6 +48,8 @@ walletRouter.get("/transactions", async (c) => {
 
     if (!wallet_id)
         return c.json({ message: "No wallet present for this user" }, HttpStatusCode.BadRequest);
+
+    
     
     try{
         const response = await db.select({
@@ -61,7 +64,7 @@ walletRouter.get("/transactions", async (c) => {
         .where(eq(wallet_transactions.walletId, wallet_id))
         .orderBy(desc(wallet_transactions.createdAt));
 
-        if (response) return c.json({ response }, HttpStatusCode.Ok)
+        if (response.length > 0) return c.json({ response }, HttpStatusCode.Ok)
         else return c.json({ message: "No wallet transactions present" }, HttpStatusCode.BadRequest)
     } catch(err){
         return c.json({
@@ -72,15 +75,18 @@ walletRouter.get("/transactions", async (c) => {
     }
 });
 
-walletRouter.put('/', async (c) => {
+walletRouter.post('/create', async (c) => {
     const payload = c.get("jwtPayload");
     if (!payload) return c.json({ message: "Unauthorized" }, HttpStatusCode.Unauthorized);
     const userId = payload.id;
     const body = await c.req.json();
 
+    const result = await db.select().from(wallets).where(eq(wallets.userId, userId)).then(res => res[0]);
+    if (result?.balance) return c.json({ message: "User's Wallet already exists" }, HttpStatusCode.BadRequest);  
+
     try{
         await db.insert(wallets)
-        .values({userId, balance: body.balance });
+        .values({ userId, balance: body.balance });
         return c.json({ message: "User's Wallet created Successfully" }, HttpStatusCode.Ok)
     } catch(err){
         return c.json( {
@@ -90,7 +96,7 @@ walletRouter.put('/', async (c) => {
     }
 })
 
-walletRouter.post('/deposit', async (c) => {
+walletRouter.put('/deposit', async (c) => {
     const payload = c.get("jwtPayload");
     if (!payload) return c.json({ message: "Unauthorized" }, HttpStatusCode.Unauthorized);
     const userId = payload.id;
@@ -115,10 +121,10 @@ walletRouter.post('/deposit', async (c) => {
             await tx.insert(wallet_transactions)
             .values({ walletId: result.id, type: "deposit", 
             amount: balance, balanceBefore: result.balance, 
-            balanceAfter: balance + result.balance });
+            balanceAfter: (Number(balance) + Number(result.balance)).toString() });
         
             await tx.update(wallets)
-            .set({ balance: result.balance + balance })
+            .set({ balance: (Number(result.balance) + Number(balance)).toString() })
             .where(eq(wallets.userId, userId)); 
         })
         
