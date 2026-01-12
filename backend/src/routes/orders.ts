@@ -6,7 +6,7 @@ import { get } from "../ws/priceStore";
 import { eq, and } from "drizzle-orm"
 import { HttpStatusCode } from "../schemas/http_response";
 import { orders, wallet_transactions, wallets } from "../db/schema";
-import { MarketOrderRequestSchema } from "../schemas/market_order";
+import { LimitOrderRequestSchema, MarketOrderRequestSchema } from "../schemas/market_order";
 import { subscribeSymbol, unsubscribeSymbol } from "../ws/finnhub";
 import { addSymbols, removeSymbols } from "../ws/activeSymbols";
 import { redisClient } from "../redis/client";
@@ -56,7 +56,7 @@ orderRouter.get("/all", async (c) => {
     );
 
   if (allOrders.length === 0 || !allOrders) {
-    return c.json({ message: "No orders found" }, HttpStatusCode.BadRequest);
+    return c.json({ message: "No orders found" }, HttpStatusCode.NotFound);
   }
   else{
     return c.json({orders: allOrders, balance}, HttpStatusCode.Ok);
@@ -65,7 +65,7 @@ orderRouter.get("/all", async (c) => {
 
 
 /// Market Order
-orderRouter.post("/market/order", async (c) => {
+orderRouter.post("/market", async (c) => {
   const userId = c.get("userId");
   if (!userId) {
     return c.json({ message: "User context missing" }, HttpStatusCode.ServerError);
@@ -85,7 +85,7 @@ orderRouter.post("/market/order", async (c) => {
       HttpStatusCode.BadRequest
     );
   }
-  const { symbol, side, lotSize } = parsed.data;
+  const { symbol, side, lotSize, stopLoss, takeProfit } = parsed.data;
   const price = get(symbol);
 
   if (!price) {
@@ -119,6 +119,8 @@ orderRouter.post("/market/order", async (c) => {
         exitPrice: null,
         lotSize: lotSize.toString(),
         marginUsed: requiredMargin.toString(),
+        stopLoss: stopLoss?.toString(),
+        takeProfit: takeProfit?.toString(),
       }).returning();
 
     const [insertedOrder] = insertedOrders;
@@ -249,29 +251,39 @@ orderRouter.post("/limit", async (c) => {
   // return c.json({ userId, walletId, balance }, HttpStatusCode.Ok);
 
   const data = await c.req.json();
-  const { symbol, side, lotSize, triggerPrice } = data;
+  const parsed = LimitOrderRequestSchema.safeParse(data);
+  if (!parsed.success) {
+    return c.json({ message: "Invalid order request", errors: parsed.error, },
+      HttpStatusCode.BadRequest);
+  }
+  const { symbol, side, lotSize, triggerPrice, stopLoss, takeProfit } = parsed.data;
 
   try{
     await db.transaction(async (tx) => {
-      const [insertedOrder] = await tx.insert(orders)
-      .values({ 
-        userId, 
-        walletId, 
-        symbol, 
-        side,
-        status: "pending",
-        orderType: "limit", 
-        triggerPrice, 
-        entryPrice: "0",
-        lotSize, 
-        marginUsed: "0",
-        openedAt: null 
-      })
-      .returning();
+    const [insertedOrder] = await tx.insert(orders).values({
+      userId: userId as string,
+      walletId: walletId as string,
+      symbol,
+      side,
+      status: "pending",
+      orderType: "limit",
+      triggerPrice: triggerPrice.toString(),
+      entryPrice: "0",
+      lotSize: lotSize.toString(),
+      marginUsed: "0",
+      openedAt: null,
+      stopLoss : stopLoss?.toString() ?? null,
+      takeProfit: takeProfit?.toString()?? null,
+    })
+    .returning({ id: orders.id });
 
-    if (!insertedOrder) throw new Error("Order insertion failed");
+
+    if (!insertedOrder) {
+      return c.json({ message: "Limit Order creation failed" }, HttpStatusCode.BadRequest);
+    }
     await redisClient.zadd(`trigger:${symbol}:${side.toUpperCase()}`, 
       Number(triggerPrice), insertedOrder.id);
+
     await redisClient.sadd("active:symbols", symbol);
     }
   );
@@ -280,8 +292,16 @@ orderRouter.post("/limit", async (c) => {
   catch(e){
     return c.json({ message: "Limit order request failed", error: e }, HttpStatusCode.BadRequest);
   }
-
-
 })
+
+// Add Stop Loss and/or Take Profit
+// orderRouter.put("/edit/:id", async (c) => {
+//   const userId = c.get("userId");
+//   if (!userId) {
+//     return c.json({ message: "User context missing" }, HttpStatusCode.ServerError);
+//   }
+//   const orderId
+  
+// })
 
 export default orderRouter

@@ -57,6 +57,13 @@
       "when": 1767978875184,
       "tag": "0007_cynical_baron_strucker",
       "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "7",
+      "when": 1768223998653,
+      "tag": "0008_flaky_talos",
+      "breakpoints": true
     }
   ]
 }

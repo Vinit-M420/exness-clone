@@ -46,6 +46,8 @@ export const orders = pgTable("orders", {
   orderType: text("order_type").notNull(),
   triggerType: text("trigger_type"), // "SL" | "TP" | "LIMIT"
   triggerPrice: numeric("trigger_price", { precision: 20, scale: 2 }),
+  stopLoss: numeric("stop_loss", { precision: 20, scale: 2 }),
+  takeProfit: numeric("take_profit", { precision: 20, scale: 2 }),
   entryPrice : numeric("entry_price", { precision: 20, scale: 2 }).notNull(),
   exitPrice : numeric("exit_price", { precision: 20, scale: 2 }),
   lotSize : numeric("lot_size", { precision: 20, scale: 2 }).notNull(),
