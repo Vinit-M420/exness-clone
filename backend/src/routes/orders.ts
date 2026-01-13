@@ -6,7 +6,7 @@ import { get } from "../ws/priceStore";
 import { eq, and } from "drizzle-orm"
 import { HttpStatusCode } from "../schemas/http_response";
 import { orders, wallet_transactions, wallets } from "../db/schema";
-import { LimitOrderRequestSchema, MarketOrderRequestSchema } from "../schemas/market_order";
+import { AddLimitsSchema, LimitOrderRequestSchema, MarketOrderRequestSchema } from "../schemas/market_order";
 import { subscribeSymbol, unsubscribeSymbol } from "../ws/finnhub";
 import { addSymbols, removeSymbols } from "../ws/activeSymbols";
 import { redisClient } from "../redis/client";
@@ -295,13 +295,50 @@ orderRouter.post("/limit", async (c) => {
 })
 
 // Add Stop Loss and/or Take Profit
-// orderRouter.put("/edit/:id", async (c) => {
-//   const userId = c.get("userId");
-//   if (!userId) {
-//     return c.json({ message: "User context missing" }, HttpStatusCode.ServerError);
-//   }
-//   const orderId
+orderRouter.put("/edit/:id", async (c) => {
+  const userId = c.get("userId");
+  if (!userId) {
+    return c.json({ message: "User context missing" }, HttpStatusCode.ServerError);
+  }
+  const orderId = c.req.param("id");
+  const isOrderPresent = await db.select()
+    .from(orders)
+    .where(and(eq(orders.id, orderId), eq(orders.userId, userId)))
+    .then(res => res[0]);
+  if (!isOrderPresent) return c.json({ message: "Order not found" }, HttpStatusCode.NotFound);
+  // console.log("isOrderPresent", !isOrderPresent);
   
-// })
+  const data = await c.req.json();
+  // console.log(data);
+  const parsed = AddLimitsSchema.safeParse(data);
+  if (!parsed.success) {
+    return c.json({ message: "No given limits to add", errors: parsed.error, },
+      HttpStatusCode.BadRequest);
+  }
+  console.log("parsed", parsed);
+  const stopLoss = parsed.data.stopLoss;
+  const takeProfit = parsed.data.takeProfit;
+
+  try{
+    const insertedOrder = await db.update(orders)
+     .set({ 
+        stopLoss : stopLoss?.toString()?? null,
+        takeProfit: takeProfit?.toString()?? null,})
+    .where(and(
+            eq(orders.id, orderId),
+            eq(orders.userId, userId),
+        ))
+   .returning({ id: orders.id });
+
+    if(!insertedOrder) c.json({ message: "Order edit failed" }, HttpStatusCode.BadRequest);
+    return c.json({ message: "Order edited" }, HttpStatusCode.Ok);
+  
+} catch(e){
+  console.error("Transaction error:", e);
+  return c.json({ message: "Error in editing the order", 
+    error: e instanceof Error? e.message : String(e) }, 
+    HttpStatusCode.ServerError);
+}
+});
 
 export default orderRouter
