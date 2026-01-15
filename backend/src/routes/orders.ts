@@ -41,38 +41,28 @@ orderRouter.use("/*", async (c, next) => {
 /// Get all orders
 orderRouter.get("/all", async (c) => {
   const userId = c.get("userId");
-  if (!userId) {
-    return c.json({ message: "User context missing" }, HttpStatusCode.ServerError);
-  }
   const walletId = c.get("walletId");
   const balance = c.get("walletBalance");
 
   const allOrders = await db.select().from(orders)
-    .where(
-        and(
+    .where(and(
             eq(orders.userId, userId),
             eq(orders.walletId, walletId)
         )
     );
 
-  if (allOrders.length === 0 || !allOrders) {
-    return c.json({ message: "No orders found" }, HttpStatusCode.NotFound);
-  }
-  else{
-    return c.json({orders: allOrders, balance}, HttpStatusCode.Ok);
-  }
+  if (allOrders.length === 0) 
+    return c.json({ message: "No orders found" }, HttpStatusCode.NotFound); 
+
+  return c.json({orders: allOrders, balance}, HttpStatusCode.Ok);
 });
 
 
 /// Market Order
 orderRouter.post("/market", async (c) => {
   const userId = c.get("userId");
-  if (!userId) {
-    return c.json({ message: "User context missing" }, HttpStatusCode.ServerError);
-  }
   const walletId = c.get("walletId");
   const balance = c.get("walletBalance");
-  // return c.json({ userId, walletId, balance }, HttpStatusCode.Ok);
 
   const order = await c.req.json();
   const parsed = MarketOrderRequestSchema.safeParse(order);
@@ -163,9 +153,6 @@ orderRouter.post("/market", async (c) => {
 /// Order Close
 orderRouter.put("/exit/:id", async (c) => {
   const userId = c.get("userId");
-  if (!userId) {
-    return c.json({ message: "User context missing" }, HttpStatusCode.ServerError);
-  }
   const walletId = c.get("walletId");
   // const balance = c.get("walletBalance");
   // return c.json({ userId, walletId, balance }, HttpStatusCode.Ok);
@@ -180,8 +167,7 @@ orderRouter.put("/exit/:id", async (c) => {
     return c.json(
       { message: "Price not available in the store for this symbol" },
       HttpStatusCode.ServiceUnavailable
-    );
-  }
+  )}
 
   try{
   await db.transaction(async (tx) => {
@@ -245,10 +231,7 @@ orderRouter.put("/exit/:id", async (c) => {
 // Limit Order
 orderRouter.post("/limit", async (c) => {
   const userId : string = c.get("userId");
-  if (!userId) return c.json({ message: "User context missing" }, HttpStatusCode.ServerError);
   const walletId = c.get("walletId");
-  // const balance = c.get("walletBalance");
-  // return c.json({ userId, walletId, balance }, HttpStatusCode.Ok);
 
   const data = await c.req.json();
   const parsed = LimitOrderRequestSchema.safeParse(data);
@@ -257,6 +240,20 @@ orderRouter.post("/limit", async (c) => {
       HttpStatusCode.BadRequest);
   }
   const { symbol, side, lotSize, triggerPrice, stopLoss, takeProfit } = parsed.data;
+  const price = get(symbol);
+
+  if (!price) 
+    return c.json({ message: "Price not available in the store for this symbol" }, 
+      HttpStatusCode.ServiceUnavailable);
+  
+  if (side === 'buy' && price > triggerPrice) {
+    return c.json({ message: "Trigger price is higher than the current price" }, 
+      HttpStatusCode.BadRequest);
+  }
+  if (side ==='sell' && price < triggerPrice) {
+    return c.json({ message: "Trigger price is lower than the current price" }, 
+      HttpStatusCode.BadRequest);
+  }
 
   try{
     await db.transaction(async (tx) => {
@@ -268,25 +265,20 @@ orderRouter.post("/limit", async (c) => {
       status: "pending",
       orderType: "limit",
       triggerPrice: triggerPrice.toString(),
-      entryPrice: "0",
+      entryPrice: null,
       lotSize: lotSize.toString(),
-      marginUsed: "0",
+      marginUsed: null,
       openedAt: null,
       stopLoss : stopLoss?.toString() ?? null,
       takeProfit: takeProfit?.toString()?? null,
-    })
-    .returning({ id: orders.id });
+    }).returning({ id: orders.id });
 
-
-    if (!insertedOrder) {
-      return c.json({ message: "Limit Order creation failed" }, HttpStatusCode.BadRequest);
-    }
-    await redisClient.zadd(`trigger:${symbol}:${side.toUpperCase()}`, 
-      Number(triggerPrice), insertedOrder.id);
-
+    if (!insertedOrder) if (!insertedOrder) throw new Error("Limit order creation failed");
     await redisClient.sadd("active:symbols", symbol);
+
     }
   );
+
   return c.json({ message: "Limit order filed" }, HttpStatusCode.Created);
   }
   catch(e){
@@ -294,19 +286,14 @@ orderRouter.post("/limit", async (c) => {
   }
 })
 
-// Add Stop Loss and/or Take Profit
+// Add Stop Loss and/or Take Profit or Edit trigger Price
 orderRouter.put("/edit/:id", async (c) => {
   const userId = c.get("userId");
-  if (!userId) {
-    return c.json({ message: "User context missing" }, HttpStatusCode.ServerError);
-  }
   const orderId = c.req.param("id");
-  const isOrderPresent = await db.select()
-    .from(orders)
+  const isOrderPresent = await db.select().from(orders)
     .where(and(eq(orders.id, orderId), eq(orders.userId, userId)))
     .then(res => res[0]);
   if (!isOrderPresent) return c.json({ message: "Order not found" }, HttpStatusCode.NotFound);
-  // console.log("isOrderPresent", !isOrderPresent);
   
   const data = await c.req.json();
   // console.log(data);
@@ -315,9 +302,20 @@ orderRouter.put("/edit/:id", async (c) => {
     return c.json({ message: "No given limits to add", errors: parsed.error, },
       HttpStatusCode.BadRequest);
   }
-  console.log("parsed", parsed);
+
+  const entryPrice = Number(isOrderPresent.entryPrice);
+  const side = isOrderPresent.side;
+    // console.log("parsed", parsed);
   const stopLoss = parsed.data.stopLoss;
   const takeProfit = parsed.data.takeProfit;
+
+  if (side === "BUY") {
+    if (stopLoss && stopLoss >= entryPrice)
+      return c.json({ message: "Invalid stop loss" }, 400);
+
+    if (takeProfit && takeProfit <= entryPrice)
+      return c.json({ message: "Invalid take profit" }, 400);
+  }
 
   try{
     const insertedOrder = await db.update(orders)
@@ -330,7 +328,22 @@ orderRouter.put("/edit/:id", async (c) => {
         ))
    .returning({ id: orders.id });
 
-    if(!insertedOrder) c.json({ message: "Order edit failed" }, HttpStatusCode.BadRequest);
+    if (insertedOrder.length === 0) c.json({ message: "Order edit failed" }, HttpStatusCode.BadRequest);
+    const redisPayload: Record<string, string> = {};
+
+    if (stopLoss !== undefined) 
+      redisPayload.stopLoss = stopLoss.toString();
+    
+    if (takeProfit !== undefined) 
+      redisPayload.takeProfit = takeProfit.toString();    
+
+    if (Object.keys(redisPayload).length > 0) {
+      await redisClient.hset(`order:${orderId}:limits`, redisPayload);
+    }
+
+    await redisClient.sadd("limit:orders", orderId);
+    if (stopLoss == null && takeProfit == null) await redisClient.srem("limit:orders", orderId);
+
     return c.json({ message: "Order edited" }, HttpStatusCode.Ok);
   
 } catch(e){
@@ -340,5 +353,6 @@ orderRouter.put("/edit/:id", async (c) => {
     HttpStatusCode.ServerError);
 }
 });
+
 
 export default orderRouter

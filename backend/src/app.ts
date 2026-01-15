@@ -7,7 +7,7 @@ import orderRouter from './routes/orders';
 
 const app = new Hono()
 
-app.get('/', (c) => c.text('Hono!'));
+app.get('/', (c) => c.text('Exness Clone'));
 app.route("/api/v1/auth", authRouter);
 app.route("/api/v1/user", userRouter);
 app.route("/api/v1/wallet", walletRouter);
