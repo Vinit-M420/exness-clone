@@ -1,0 +1,1 @@
+ALTER TABLE "orders" ALTER COLUMN "margin_used" DROP NOT NULL;
