@@ -10,6 +10,7 @@ import { AddLimitsSchema, LimitOrderRequestSchema, MarketOrderRequestSchema } fr
 import { subscribeSymbol, unsubscribeSymbol } from "../ws/finnhub";
 import { addSymbols, removeSymbols } from "../ws/activeSymbols";
 import { redisClient } from "../redis/client";
+import { price } from "../../test/mock_pricefeed";
 dotenv.config()
 
 const orderRouter = new Hono();
@@ -232,28 +233,28 @@ orderRouter.put("/exit/:id", async (c) => {
 orderRouter.post("/limit", async (c) => {
   const userId : string = c.get("userId");
   const walletId = c.get("walletId");
-
   const data = await c.req.json();
+
   const parsed = LimitOrderRequestSchema.safeParse(data);
   if (!parsed.success) {
     return c.json({ message: "Invalid order request", errors: parsed.error, },
       HttpStatusCode.BadRequest);
   }
   const { symbol, side, lotSize, triggerPrice, stopLoss, takeProfit } = parsed.data;
-  const price = get(symbol);
+  // const price = get(symbol);
 
   if (!price) 
     return c.json({ message: "Price not available in the store for this symbol" }, 
       HttpStatusCode.ServiceUnavailable);
   
-  if (side === 'buy' && price > triggerPrice) {
-    return c.json({ message: "Trigger price is higher than the current price" }, 
-      HttpStatusCode.BadRequest);
-  }
-  if (side ==='sell' && price < triggerPrice) {
-    return c.json({ message: "Trigger price is lower than the current price" }, 
-      HttpStatusCode.BadRequest);
-  }
+  // if (side === 'buy' && price > triggerPrice) {
+  //   return c.json({ message: "Trigger price is higher than the current price" }, 
+  //     HttpStatusCode.BadRequest);
+  // }
+  // if (side ==='sell' && price < triggerPrice) {
+  //   return c.json({ message: "Trigger price is lower than the current price" }, 
+  //     HttpStatusCode.BadRequest);
+  // }
 
   try{
     await db.transaction(async (tx) => {
@@ -275,8 +276,22 @@ orderRouter.post("/limit", async (c) => {
 
     if (!insertedOrder) if (!insertedOrder) throw new Error("Limit order creation failed");
     await redisClient.sadd("active:symbols", symbol);
-
-    }
+    await redisClient.zadd(`trigger:${symbol}:${side}`, Number(triggerPrice), insertedOrder.id);
+    
+    if (stopLoss) {
+        await redisClient.zadd(`sl:${symbol}:${side.toUpperCase()}`,
+          Number(stopLoss),
+          insertedOrder.id
+        );
+      }
+    if (takeProfit) {
+        await redisClient.zadd(
+          `tp:${symbol}:${side.toUpperCase()}`,
+          Number(takeProfit),
+          insertedOrder.id
+        );
+      }
+  }
   );
 
   return c.json({ message: "Limit order filed" }, HttpStatusCode.Created);

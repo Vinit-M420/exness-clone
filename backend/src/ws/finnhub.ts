@@ -33,9 +33,8 @@ export async function connectFinnhub(onMessage : (data: any) => void){
         set(latestTrade.s, latestTrade.p);  
         await priceWatcher(latestTrade.s, latestTrade.p);
 
-        // for (const trade of msg.data) {
-        //   set(trade.s, trade.p);  // Update last price     
-        // }       
+        // for (const trade of msg.data) 
+        //   set(trade.s, trade.p);  // Update last price            
     };
 
     finnhubSocket.onclose = () => {

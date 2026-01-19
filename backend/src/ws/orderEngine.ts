@@ -1,71 +1,147 @@
 import { db } from "../db";
-import { eq, and } from "drizzle-orm"
+import { eq, and } from "drizzle-orm";
 import { orders, wallet_transactions, wallets } from "../db/schema";
-import { redisClient } from "../redis/client";
+// import { redisClient } from "../redis/client";
 
+export async function OrderEngine(
+  orderId: string,
+  symbol: string,
+  side: string,
+  currentPrice: number
+) {
+  console.log(`[OrderEngine] Processing order ${orderId} - ${side} @ ${currentPrice}`);
 
-export async function OrderEngine(orderId : string, symbol: string, side: string, currentPrice : number){
+  // // Check if order exists in trigger set 
+  // const triggerPrice = await redisClient.zscore(
+  //   `trigger:${symbol}:${side.toLowerCase()}`,
+  //   orderId
+  // );
 
-    const triggerPrice = await redisClient.zscore(
-        `trigger:${symbol}:${side.toUpperCase()}`,
-        orderId
-    );
-    if (!triggerPrice) return;
-    if (side === "BUY" && currentPrice < triggerPrice) return;  
-    if (side === "SELL" && currentPrice > triggerPrice) return;
+  // if (!triggerPrice) {
+  //   console.log(`[OrderEngine] ❌ No trigger price found for ${orderId} in trigger:${symbol}:${side}`);
+  //   return;
+  // }
 
+  // console.log(`[OrderEngine] Found trigger price: ${triggerPrice}`);
 
-    const order = await db.select().from(orders).where(eq(orders.id, orderId)).then(res => res[0]);
-    if (!order) return;
-    if (order.status !== "pending" || order.orderType !== "limit") return;
-    if (order.side !== "buy" && order.side !== "sell") return;
+  // // Validate trigger conditions
+  // if (side === "buy" && currentPrice < triggerPrice) {
+  //   console.log(`[OrderEngine] ❌ BUY price not reached: ${currentPrice} < ${triggerPrice}`);
+  //   return;
+  // }
+  // if (side === "sell" && currentPrice > triggerPrice) {
+  //   console.log(`[OrderEngine] ❌ SELL price not reached: ${currentPrice} > ${triggerPrice}`);
+  //   return;
+  // }
 
-    const balance  = await db.select({ balance: wallets.balance })
-        .from(wallets).where(eq(wallets.id, order.walletId)).then(res => res[0]);
+  // console.log(`[OrderEngine] ✅ Trigger condition met, fetching order from DB...`);
 
-    if (!balance) return;
+  // Fetch order from database
+  const order = await db
+    .select()
+    .from(orders)
+    .where(eq(orders.id, orderId))
+    .then((res) => res[0]);
 
-    const leverage = 10 // hardcoded for now
-    const positionVal = currentPrice * Number(order.lotSize);
-    const requiredMargin = positionVal / leverage
-    if (Number(balance?.balance) < requiredMargin) throw new Error("Insufficient balance");
+  if (!order) {
+    console.log(`[OrderEngine] ❌ Order ${orderId} not found in DB`);
+    return;
+  }
 
-    await db.transaction(async (tx) => {    
-        const wallet  = await db.select({ balance: wallets.balance })
-            .from(wallets).where(eq(wallets.id, order.walletId)).then(res => res[0]);
+  console.log(`[OrderEngine] Order found - Status: ${order.status}, Type: ${order.orderType}`);
 
-        if (!wallet) return;
-        if (Number(wallet.balance) < requiredMargin) throw new Error("Insufficient balance");   
+  // Validate order status and type
+  if (order.status !== "pending" || order.orderType !== "limit") {
+    console.log(`[OrderEngine] ❌ Invalid order status/type: ${order.status}/${order.orderType}`);
+    return;
+  }
 
-        const updated = await tx.update(orders).set({ 
-            status: "open", 
-            entryPrice: currentPrice.toString(),
-            marginUsed: requiredMargin.toString(),
-            openedAt: new Date(),
-            })
-            .where(and(
-            eq(orders.id, orderId),
-            eq(orders.status, "pending")))
-            .returning({ id: orders.id });
-        
-        if (updated.length === 0) return;
+  if (order.side !== "buy" && order.side !== "sell") {
+    console.log(`[OrderEngine] ❌ Invalid order side: ${order.side}`);
+    return;
+  }
 
-        const balanceBefore = wallet?.balance;
-        const balanceAfter = Number(balanceBefore) - requiredMargin;
+  // Check wallet balance
+  const balance = await db
+    .select({ balance: wallets.balance })
+    .from(wallets)
+    .where(eq(wallets.id, order.walletId))
+    .then((res) => res[0]);
 
-        await tx.insert(wallet_transactions)
-        .values({ 
-            walletId : order.walletId,
-            type: "trade_margin_lock", 
-            amount: requiredMargin.toString(), 
-            balanceBefore: balanceBefore.toString(), 
-            balanceAfter: balanceAfter.toString(), 
-            referenceId: order.id
-        });
+  if (!balance) {
+    console.log(`[OrderEngine] ❌ Wallet ${order.walletId} not found`);
+    return;
+  }
 
-        await tx.update(wallets).set({ balance: balanceAfter.toString() })
-            .where(eq(wallets.id, order.walletId));
-            
-    })
+  // Calculate required margin
+  const leverage = 10;
+  const positionVal = currentPrice * Number(order.lotSize);
+  const requiredMargin = positionVal / leverage;
 
+  console.log(`[OrderEngine] Position value: ${positionVal}, Required margin: ${requiredMargin}, Available: ${balance.balance}`);
+
+  if (Number(balance.balance) < requiredMargin) {
+    console.error(`[OrderEngine] ❌ Insufficient balance: ${balance.balance} < ${requiredMargin}`);
+    throw new Error("Insufficient balance");
+  }
+
+  console.log(`[OrderEngine] 💰 Balance check passed, executing transaction...`);
+
+  // Execute order in transaction
+  await db.transaction(async (tx) => {
+    // Re-check wallet balance in transaction
+    const wallet = await tx
+      .select({ balance: wallets.balance })
+      .from(wallets)
+      .where(eq(wallets.id, order.walletId))
+      .then((res) => res[0]);
+
+    if (!wallet) {
+      console.log(`[OrderEngine] ❌ Wallet not found in transaction`);
+      return;
+    }
+
+    if (Number(wallet.balance) < requiredMargin) {
+      console.error(`[OrderEngine] ❌ Insufficient balance in transaction`);
+      throw new Error("Insufficient balance");
+    }
+
+    // Update order status from pending to open
+    const updated = await tx
+      .update(orders)
+      .set({
+        status: "open",
+        entryPrice: currentPrice.toString(),
+        marginUsed: requiredMargin.toString(),
+        openedAt: new Date(),
+      })
+      .where(and(eq(orders.id, orderId), eq(orders.status, "pending")))
+      .returning({ id: orders.id });
+
+    if (updated.length === 0) {
+      console.log(`[OrderEngine] ⚠️ Order ${orderId} already processed or doesn't exist`);
+      return;
+    }
+
+    // Record wallet transaction
+    const balanceBefore = wallet.balance;
+    const balanceAfter = Number(balanceBefore) - requiredMargin;
+
+    await tx.insert(wallet_transactions).values({
+      walletId: order.walletId,
+      type: "trade_margin_lock",
+      amount: requiredMargin.toString(),
+      balanceBefore: balanceBefore.toString(),
+      balanceAfter: balanceAfter.toString(),
+      referenceId: order.id,
+    });
+
+    // Update wallet balance
+    await tx
+      .update(wallets)
+      .set({ balance: balanceAfter.toString() })
+      .where(eq(wallets.id, order.walletId));
+
+    console.log(`[OrderEngine] ✅✅✅ Order ${orderId} executed successfully! Entry: ${currentPrice}, Margin: ${requiredMargin}`);
+  });
 }
