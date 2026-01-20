@@ -56,8 +56,8 @@ export const LimitOrderRequestSchema = MarketOrderRequestSchema.extend({
 
 export const AddLimitsSchema = z.object({
     // triggerPrice: z.number().positive("Trigger price must be greater than 0"),
-    stopLoss: z.number().positive().optional(),
-    takeProfit: z.number().positive().optional(),
+    stopLoss: z.number().positive().nullable(),
+    takeProfit: z.number().positive().nullable(),
 }).superRefine((data, ctx) => {
     if (data.stopLoss === undefined && data.takeProfit === undefined) {
         ctx.addIssue({

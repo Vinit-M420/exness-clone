@@ -1,9 +1,9 @@
 import { priceWatcher } from "../src/ws/priceWatcher";
 
-export let price = 47200;
+export let price = 46500;
 
 setInterval(async () => {
   price -= 50;
-  await priceWatcher("BINANCE:SOLUSDT", price);
+  await priceWatcher("BINANCE:ETHUSDT", price);
   console.log("price:", price);
 }, 1000);

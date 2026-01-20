@@ -1,40 +1,15 @@
 import { db } from "../db";
 import { eq, and } from "drizzle-orm";
 import { orders, wallet_transactions, wallets } from "../db/schema";
-// import { redisClient } from "../redis/client";
 
-export async function OrderEngine(
+// ========== OPEN POSITION (Trigger Price Hit) ==========
+export async function openPosition(
   orderId: string,
   symbol: string,
   side: string,
   currentPrice: number
 ) {
-  console.log(`[OrderEngine] Processing order ${orderId} - ${side} @ ${currentPrice}`);
-
-  // // Check if order exists in trigger set 
-  // const triggerPrice = await redisClient.zscore(
-  //   `trigger:${symbol}:${side.toLowerCase()}`,
-  //   orderId
-  // );
-
-  // if (!triggerPrice) {
-  //   console.log(`[OrderEngine] ❌ No trigger price found for ${orderId} in trigger:${symbol}:${side}`);
-  //   return;
-  // }
-
-  // console.log(`[OrderEngine] Found trigger price: ${triggerPrice}`);
-
-  // // Validate trigger conditions
-  // if (side === "buy" && currentPrice < triggerPrice) {
-  //   console.log(`[OrderEngine] ❌ BUY price not reached: ${currentPrice} < ${triggerPrice}`);
-  //   return;
-  // }
-  // if (side === "sell" && currentPrice > triggerPrice) {
-  //   console.log(`[OrderEngine] ❌ SELL price not reached: ${currentPrice} > ${triggerPrice}`);
-  //   return;
-  // }
-
-  // console.log(`[OrderEngine] ✅ Trigger condition met, fetching order from DB...`);
+  console.log(`[OpenPosition] Processing order ${orderId} - ${side} @ ${currentPrice}`);
 
   // Fetch order from database
   const order = await db
@@ -44,20 +19,31 @@ export async function OrderEngine(
     .then((res) => res[0]);
 
   if (!order) {
-    console.log(`[OrderEngine] ❌ Order ${orderId} not found in DB`);
+    console.log(`[OpenPosition] ❌ Order ${orderId} not found in DB`);
     return;
   }
 
-  console.log(`[OrderEngine] Order found - Status: ${order.status}, Type: ${order.orderType}`);
+  console.log(`[OpenPosition] Order found - Status: ${order.status}, Type: ${order.orderType}`);
 
   // Validate order status and type
   if (order.status !== "pending" || order.orderType !== "limit") {
-    console.log(`[OrderEngine] ❌ Invalid order status/type: ${order.status}/${order.orderType}`);
+    console.log(`[OpenPosition] ❌ Invalid order status/type: ${order.status}/${order.orderType}`);
     return;
   }
 
   if (order.side !== "buy" && order.side !== "sell") {
-    console.log(`[OrderEngine] ❌ Invalid order side: ${order.side}`);
+    console.log(`[OpenPosition] ❌ Invalid order side: ${order.side}`);
+    return;
+  }
+
+  // Validate trigger price condition
+  const triggerPrice = Number(order.triggerPrice);
+  if (side === "buy" && currentPrice < triggerPrice) {
+    console.log(`[OpenPosition] ❌ BUY price not reached: ${currentPrice} < ${triggerPrice}`);
+    return;
+  }
+  if (side === "sell" && currentPrice > triggerPrice) {
+    console.log(`[OpenPosition] ❌ SELL price not reached: ${currentPrice} > ${triggerPrice}`);
     return;
   }
 
@@ -69,7 +55,7 @@ export async function OrderEngine(
     .then((res) => res[0]);
 
   if (!balance) {
-    console.log(`[OrderEngine] ❌ Wallet ${order.walletId} not found`);
+    console.log(`[OpenPosition] ❌ Wallet ${order.walletId} not found`);
     return;
   }
 
@@ -78,14 +64,14 @@ export async function OrderEngine(
   const positionVal = currentPrice * Number(order.lotSize);
   const requiredMargin = positionVal / leverage;
 
-  console.log(`[OrderEngine] Position value: ${positionVal}, Required margin: ${requiredMargin}, Available: ${balance.balance}`);
+  console.log(`[OpenPosition] Position value: ${positionVal}, Required margin: ${requiredMargin}, Available: ${balance.balance}`);
 
   if (Number(balance.balance) < requiredMargin) {
-    console.error(`[OrderEngine] ❌ Insufficient balance: ${balance.balance} < ${requiredMargin}`);
+    console.error(`[OpenPosition] ❌ Insufficient balance: ${balance.balance} < ${requiredMargin}`);
     throw new Error("Insufficient balance");
   }
 
-  console.log(`[OrderEngine] 💰 Balance check passed, executing transaction...`);
+  console.log(`[OpenPosition] 💰 Balance check passed, executing transaction...`);
 
   // Execute order in transaction
   await db.transaction(async (tx) => {
@@ -97,12 +83,12 @@ export async function OrderEngine(
       .then((res) => res[0]);
 
     if (!wallet) {
-      console.log(`[OrderEngine] ❌ Wallet not found in transaction`);
+      console.log(`[OpenPosition] ❌ Wallet not found in transaction`);
       return;
     }
 
     if (Number(wallet.balance) < requiredMargin) {
-      console.error(`[OrderEngine] ❌ Insufficient balance in transaction`);
+      console.error(`[OpenPosition] ❌ Insufficient balance in transaction`);
       throw new Error("Insufficient balance");
     }
 
@@ -119,7 +105,7 @@ export async function OrderEngine(
       .returning({ id: orders.id });
 
     if (updated.length === 0) {
-      console.log(`[OrderEngine] ⚠️ Order ${orderId} already processed or doesn't exist`);
+      console.log(`[OpenPosition] ⚠️ Order ${orderId} already processed or doesn't exist`);
       return;
     }
 
@@ -142,6 +128,6 @@ export async function OrderEngine(
       .set({ balance: balanceAfter.toString() })
       .where(eq(wallets.id, order.walletId));
 
-    console.log(`[OrderEngine] ✅✅✅ Order ${orderId} executed successfully! Entry: ${currentPrice}, Margin: ${requiredMargin}`);
+    console.log(`[OpenPosition] ✅✅✅ Order ${orderId} opened! Entry: ${currentPrice}, Margin: ${requiredMargin}`);
   });
 }

@@ -308,10 +308,12 @@ orderRouter.put("/edit/:id", async (c) => {
   const isOrderPresent = await db.select().from(orders)
     .where(and(eq(orders.id, orderId), eq(orders.userId, userId)))
     .then(res => res[0]);
-  if (!isOrderPresent) return c.json({ message: "Order not found" }, HttpStatusCode.NotFound);
-  
+  if (!isOrderPresent) 
+    return c.json({ message: "Order not found" }, HttpStatusCode.NotFound);
+  if (isOrderPresent.status !== "open")
+      return c.json({ message: "SL/TP allowed only for open orders" }, HttpStatusCode.BadRequest);
+
   const data = await c.req.json();
-  // console.log(data);
   const parsed = AddLimitsSchema.safeParse(data);
   if (!parsed.success) {
     return c.json({ message: "No given limits to add", errors: parsed.error, },
@@ -320,20 +322,20 @@ orderRouter.put("/edit/:id", async (c) => {
 
   const entryPrice = Number(isOrderPresent.entryPrice);
   const side = isOrderPresent.side;
-    // console.log("parsed", parsed);
+  const symbol = isOrderPresent.symbol;
   const stopLoss = parsed.data.stopLoss;
   const takeProfit = parsed.data.takeProfit;
 
   if (side === "BUY") {
     if (stopLoss && stopLoss >= entryPrice)
-      return c.json({ message: "Invalid stop loss" }, 400);
+      return c.json({ message: "Invalid stop loss:" }, 400);
 
     if (takeProfit && takeProfit <= entryPrice)
       return c.json({ message: "Invalid take profit" }, 400);
   }
 
   try{
-    const insertedOrder = await db.update(orders)
+    const updatedOrder = await db.update(orders)
      .set({ 
         stopLoss : stopLoss?.toString()?? null,
         takeProfit: takeProfit?.toString()?? null,})
@@ -343,21 +345,30 @@ orderRouter.put("/edit/:id", async (c) => {
         ))
    .returning({ id: orders.id });
 
-    if (insertedOrder.length === 0) c.json({ message: "Order edit failed" }, HttpStatusCode.BadRequest);
-    const redisPayload: Record<string, string> = {};
-
-    if (stopLoss !== undefined) 
-      redisPayload.stopLoss = stopLoss.toString();
+    if (updatedOrder.length === 0) 
+      return c.json({message: "Order edit failed"}, HttpStatusCode.BadRequest);
     
-    if (takeProfit !== undefined) 
-      redisPayload.takeProfit = takeProfit.toString();    
+    await redisClient.zrem(`sl:${symbol}:${side}`, orderId);
+    await redisClient.zrem(`tp:${symbol}:${side}`, orderId);
 
-    if (Object.keys(redisPayload).length > 0) {
-      await redisClient.hset(`order:${orderId}:limits`, redisPayload);
-    }
+    // if (stopLoss == null && takeProfit == null) {
+    //   await redisClient.srem("limit:orders", orderId);
+    // } else {
+    //   await redisClient.sadd("limit:orders", orderId);
+    // }
 
-    await redisClient.sadd("limit:orders", orderId);
-    if (stopLoss == null && takeProfit == null) await redisClient.srem("limit:orders", orderId);
+    if (stopLoss !== null)
+      await redisClient.zadd(`sl:${isOrderPresent.symbol}:${isOrderPresent.side}`, stopLoss, orderId)
+      console.log(`SL: ${orderId} ${stopLoss}`)
+
+    if (takeProfit !== null)
+      await redisClient.zadd(`tp:${isOrderPresent.symbol}:${isOrderPresent.side}`, takeProfit, orderId)
+      console.log(`TP: ${orderId} ${takeProfit}`)
+
+    // if (stopLoss === null)
+    //   await redisClient.zrem(`sl:${isOrderPresent.symbol}:${side}`, orderId);
+    // if (takeProfit === null)
+    //   await redisClient.zrem(`tp:${isOrderPresent.symbol}:${side}`, orderId);
 
     return c.json({ message: "Order edited" }, HttpStatusCode.Ok);
   
