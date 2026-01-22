@@ -10,7 +10,7 @@ import { AddLimitsSchema, LimitOrderRequestSchema, MarketOrderRequestSchema } fr
 import { subscribeSymbol, unsubscribeSymbol } from "../ws/finnhub";
 import { addSymbols, removeSymbols } from "../ws/activeSymbols";
 import { redisClient } from "../redis/client";
-import { price } from "../../test/mock_pricefeed";
+// import { price } from "../../test/mock_pricefeed";
 import { checker } from "../funcs/checker";
 dotenv.config()
 
@@ -78,7 +78,7 @@ orderRouter.post("/market", async (c) => {
     );
   }
   const { symbol, side, lotSize, stopLoss, takeProfit } = parsed.data;
-  // const price = get(symbol);
+  const price = get(symbol);
   if (!price) {
     return c.json(
       { message: "Price not available in the store for this symbol" },
@@ -177,7 +177,7 @@ orderRouter.put("/exit/:id", async (c) => {
   const isOrderPresent = await db.select().from(orders).where(eq(orders.id, orderId)).then(res => res[0]);
   if (!isOrderPresent) return c.json({ message: "Order not found" }, HttpStatusCode.BadRequest);
 
-  // const price = get(isOrderPresent.symbol);
+  const price = get(isOrderPresent.symbol);
  
   if (!price) {
     return c.json(
@@ -256,7 +256,7 @@ orderRouter.post("/limit", async (c) => {
       HttpStatusCode.BadRequest);
   }
   const { symbol, side, lotSize, triggerPrice, stopLoss, takeProfit } = parsed.data;
-  // const price = get(symbol);
+  const price = get(symbol);
 
   if (!price) 
     return c.json({ message: "Price not available in the store for this symbol" }, 
@@ -380,5 +380,39 @@ orderRouter.put("/edit/:id", async (c) => {
 }
 });
 
+orderRouter.delete("/order/:id", async (c) => {
+  const userId = c.get("userId");
+  const orderId = c.req.param("id");
+  const isOrderPresent = await db.select().from(orders)
+   .where(and(eq(orders.id, orderId), eq(orders.userId, userId))).then(res => res[0]);
+  
+  if (!isOrderPresent) return c.json({ message: "Order not found" }, HttpStatusCode.NotFound);
+  if (isOrderPresent.status !== "pending")
+    return c.json({ message: "Only pending Order can be deleted" }, HttpStatusCode.BadRequest);
 
+  try{
+    await db.delete(orders)
+      .where(and(eq(orders.id, orderId), eq(orders.userId, userId)));
+
+    await redisClient.zrem(`trigger:${isOrderPresent.symbol}:${isOrderPresent.side}`,
+      orderId);
+
+    return c.json({ message: "Order deleted" }, HttpStatusCode.Ok);
+  }
+  catch(e){
+    console.error(e);
+    return c.json({ message: "Order deletion failed" }, HttpStatusCode.BadRequest);
+  }
+});
+
+orderRouter.get("order/:id", async (c) => {
+  const userId = c.get("userId");
+  const orderId = c.req.param("id");
+  const isOrderPresent = await db.select().from(orders)
+   .where(and(eq(orders.id, orderId), eq(orders.userId, userId))).then(res => res[0]);
+  
+  if (!isOrderPresent) return c.json({ message: "Order not found" }, HttpStatusCode.NotFound);
+  return c.json(isOrderPresent, HttpStatusCode.Ok);
+});
+ 
 export default orderRouter
