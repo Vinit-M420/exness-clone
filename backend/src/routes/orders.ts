@@ -11,6 +11,7 @@ import { subscribeSymbol, unsubscribeSymbol } from "../ws/finnhub";
 import { addSymbols, removeSymbols } from "../ws/activeSymbols";
 import { redisClient } from "../redis/client";
 import { price } from "../../test/mock_pricefeed";
+import { checker } from "../funcs/checker";
 dotenv.config()
 
 const orderRouter = new Hono();
@@ -77,14 +78,16 @@ orderRouter.post("/market", async (c) => {
     );
   }
   const { symbol, side, lotSize, stopLoss, takeProfit } = parsed.data;
-  const price = get(symbol);
-
+  // const price = get(symbol);
   if (!price) {
     return c.json(
       { message: "Price not available in the store for this symbol" },
       HttpStatusCode.ServiceUnavailable
-    );
-  }
+  )}
+
+  const validationError = checker(side, Number(stopLoss), Number(takeProfit), Number(price));
+  if (validationError) 
+      return c.json({ message: validationError },HttpStatusCode.BadRequest);
 
   const leverage = 10 // hardcoded for now
   const positionVal = price * lotSize;
@@ -112,9 +115,10 @@ orderRouter.post("/market", async (c) => {
         marginUsed: requiredMargin.toString(),
         stopLoss: stopLoss?.toString(),
         takeProfit: takeProfit?.toString(),
-      }).returning();
+      }).returning({ id: orders.id });
 
     const [insertedOrder] = insertedOrders;
+
     if (!insertedOrder) throw new Error("Order insertion failed");   
     
     const balanceBefore = Number(balance);
@@ -133,11 +137,22 @@ orderRouter.post("/market", async (c) => {
     await tx.update(wallets)
       .set({ balance: balanceAfter.toString() })
       .where(eq(wallets.id, walletId));
-    await redisClient.sadd("active:symbols", symbol);
+      await redisClient.sadd("active:symbols", symbol);
+      
+      if (stopLoss) {
+        await redisClient.zadd(`sl:${symbol}:${side}`,
+          Number(stopLoss),
+          insertedOrder.id
+      )}
+      if (takeProfit) {
+        await redisClient.zadd(
+          `tp:${symbol}:${side}`,
+          Number(takeProfit),
+          insertedOrder.id
+      )}
+      const isFirst = addSymbols(symbol);
+      if (isFirst) subscribeSymbol(symbol); 
   });
-
-  const isFirst = addSymbols(symbol);
-  if (isFirst) subscribeSymbol(symbol); 
 
   return c.json({ 
     message: "Market order placed"}, HttpStatusCode.Created);
@@ -162,7 +177,7 @@ orderRouter.put("/exit/:id", async (c) => {
   const isOrderPresent = await db.select().from(orders).where(eq(orders.id, orderId)).then(res => res[0]);
   if (!isOrderPresent) return c.json({ message: "Order not found" }, HttpStatusCode.BadRequest);
 
-  const price = get(isOrderPresent.symbol);
+  // const price = get(isOrderPresent.symbol);
  
   if (!price) {
     return c.json(
@@ -246,15 +261,6 @@ orderRouter.post("/limit", async (c) => {
   if (!price) 
     return c.json({ message: "Price not available in the store for this symbol" }, 
       HttpStatusCode.ServiceUnavailable);
-  
-  // if (side === 'buy' && price > triggerPrice) {
-  //   return c.json({ message: "Trigger price is higher than the current price" }, 
-  //     HttpStatusCode.BadRequest);
-  // }
-  // if (side ==='sell' && price < triggerPrice) {
-  //   return c.json({ message: "Trigger price is lower than the current price" }, 
-  //     HttpStatusCode.BadRequest);
-  // }
 
   try{
     await db.transaction(async (tx) => {
@@ -279,21 +285,16 @@ orderRouter.post("/limit", async (c) => {
     await redisClient.zadd(`trigger:${symbol}:${side}`, Number(triggerPrice), insertedOrder.id);
     
     if (stopLoss) {
-        await redisClient.zadd(`sl:${symbol}:${side.toUpperCase()}`,
+        await redisClient.zadd(`sl:${symbol}:${side}`,
           Number(stopLoss),
           insertedOrder.id
-        );
-      }
+    )}
     if (takeProfit) {
-        await redisClient.zadd(
-          `tp:${symbol}:${side.toUpperCase()}`,
+        await redisClient.zadd(`tp:${symbol}:${side}`,
           Number(takeProfit),
           insertedOrder.id
-        );
-      }
-  }
-  );
-
+    )}
+  });
   return c.json({ message: "Limit order filed" }, HttpStatusCode.Created);
   }
   catch(e){
@@ -326,7 +327,7 @@ orderRouter.put("/edit/:id", async (c) => {
   const stopLoss = parsed.data.stopLoss;
   const takeProfit = parsed.data.takeProfit;
 
-  if (side === "BUY") {
+  if (side === "buy") {
     if (stopLoss && stopLoss >= entryPrice)
       return c.json({ message: "Invalid stop loss:" }, 400);
 
@@ -336,9 +337,8 @@ orderRouter.put("/edit/:id", async (c) => {
 
   try{
     const updatedOrder = await db.update(orders)
-     .set({ 
-        stopLoss : stopLoss?.toString()?? null,
-        takeProfit: takeProfit?.toString()?? null,})
+     .set({stopLoss : stopLoss?.toString()?? null,
+          takeProfit: takeProfit?.toString()?? null,})
     .where(and(
             eq(orders.id, orderId),
             eq(orders.userId, userId),

@@ -13,24 +13,27 @@ export const MarketOrderRequestSchema = z.object({
 
 })
 
-export const LimitOrderRequestSchema = MarketOrderRequestSchema.extend({
-  triggerPrice: z.number().positive("Trigger price must be greater than 0"),
-  stopLoss: z.number().positive().optional(),
-  takeProfit: z.number().positive().optional(),
+export const LimitOrderRequestSchema = z.object({
+    symbol: SymbolEnum,
+    side: z.enum(["buy", "sell"]),
+    lotSize: z.number().positive("Lot size must be greater than 0"),
+    triggerPrice: z.number().positive("Trigger price must be greater than 0"),
+    stopLoss: z.number().positive().optional(),
+    takeProfit: z.number().positive().optional(),
 })
 .superRefine((data, ctx) => {
   if (data.side === 'buy') { // long
     if (data.stopLoss && data.stopLoss >= data.triggerPrice) {
       ctx.addIssue({
         code: "custom",
-        message: "Stop loss cannot be greater than trigger price",
+        message: "Stop loss cannot be greater than trigger price in buy position",
         path: ["stopLoss"],
       });
     }
     if (data.takeProfit && data.takeProfit <= data.triggerPrice) {
       ctx.addIssue({
         code: "custom",
-        message: "Take profit cannot be less than trigger price",
+        message: "Take profit cannot be less than trigger price in buy position",
         path: ["takeProfit"],
       });
     }
@@ -40,14 +43,14 @@ export const LimitOrderRequestSchema = MarketOrderRequestSchema.extend({
     if (data.stopLoss && data.stopLoss <= data.triggerPrice) {
       ctx.addIssue({
         code: "custom",
-        message: "Stop loss cannot be less than trigger price",
+        message: "Stop loss cannot be less than trigger price in sell position",
         path: ["stopLoss"],
       });
     }
     if (data.takeProfit && data.takeProfit >= data.triggerPrice) {
       ctx.addIssue({
         code: "custom",
-        message: "Take profit cannot be greater than trigger price",
+        message: "Take profit cannot be greater than trigger price in sell position",
         path: ["takeProfit"],
       });
     }

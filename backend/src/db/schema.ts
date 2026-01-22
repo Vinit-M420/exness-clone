@@ -55,4 +55,5 @@ export const orders = pgTable("orders", {
   pnl: text("pnl"),
   openedAt: timestamp("opened_at").defaultNow(),
   closedAt: timestamp("closed_at"),
+  createdAt: timestamp("created_at").defaultNow(),
 }) 
