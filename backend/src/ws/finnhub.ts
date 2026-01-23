@@ -46,7 +46,6 @@ export async function connectFinnhub(onMessage : (data: any) => void){
     finnhubSocket.onerror = (err) => {
         console.error("Finnhub WS error", err);
     };
-
 } 
 
 export function subscribeSymbol(symbol: string) {
