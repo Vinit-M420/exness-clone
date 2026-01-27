@@ -1,0 +1,243 @@
+.authContainer {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 100vh;
+  padding: 2rem;
+}
+
+.authCard {
+  width: 100%;
+  max-width: 460px;
+  background: var(--exness-card);
+  border: 1px solid var(--exness-border);
+  border-radius: 20px;
+  padding: 3rem;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.4);
+  animation: scaleIn 0.5s ease-out;
+}
+
+@keyframes scaleIn {
+  from {
+    opacity: 0;
+    transform: scale(0.9);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+.authLogo {
+  font-size: 2rem;
+  font-weight: 800;
+  margin-bottom: 2rem;
+  text-align: center;
+  background: linear-gradient(135deg, var(--exness-gold) 0%, #FFE57F 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+.authTitle {
+  font-size: 1.8rem;
+  font-weight: 700;
+  margin-bottom: 0.5rem;
+  text-align: center;
+}
+
+.authSubtitle {
+  color: var(--exness-text-dim);
+  margin-bottom: 2rem;
+  text-align: center;
+}
+
+.formGroup {
+  margin-bottom: 1.5rem;
+}
+
+.formLabel {
+  display: block;
+  margin-bottom: 0.5rem;
+  font-weight: 500;
+  font-size: 0.95rem;
+}
+
+.formInput {
+  width: 100%;
+  padding: 1rem;
+  background: var(--exness-darker);
+  border: 1px solid var(--exness-border);
+  border-radius: 10px;
+  color: var(--exness-text);
+  font-size: 1rem;
+  font-family: 'Manrope', sans-serif;
+  transition: all 0.3s ease;
+}
+
+.formInput:focus {
+  outline: none;
+  border-color: var(--exness-gold);
+  box-shadow: 0 0 0 3px rgba(255, 213, 79, 0.1);
+}
+
+.formInput::placeholder {
+  color: var(--exness-text-dim);
+}
+
+.forgotPassword {
+  text-align: right;
+  margin-top: -0.5rem;
+  margin-bottom: 1.5rem;
+}
+
+.forgotPassword a {
+  color: var(--exness-gold);
+  text-decoration: none;
+  font-size: 0.9rem;
+  transition: opacity 0.3s ease;
+}
+
+.forgotPassword a:hover {
+  opacity: 0.8;
+}
+
+.btnAuth {
+  width: 100%;
+  padding: 1.2rem;
+  font-size: 1.1rem;
+  font-weight: 600;
+  border-radius: 10px;
+  border: none;
+  cursor: pointer;
+  background: linear-gradient(135deg, var(--exness-gold) 0%, #FFE57F 100%);
+  color: var(--exness-darker);
+  transition: all 0.3s ease;
+  font-family: 'Manrope', sans-serif;
+  margin-bottom: 1.5rem;
+}
+
+.btnAuth:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 24px rgba(255, 213, 79, 0.3);
+}
+
+.divider {
+  display: flex;
+  align-items: center;
+  margin: 1.5rem 0;
+  color: var(--exness-text-dim);
+  font-size: 0.9rem;
+}
+
+.divider::before,
+.divider::after {
+  content: '';
+  flex: 1;
+  height: 1px;
+  background: var(--exness-border);
+}
+
+.divider::before {
+  margin-right: 1rem;
+}
+
+.divider::after {
+  margin-left: 1rem;
+}
+
+.socialLogin {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1rem;
+  margin-bottom: 1.5rem;
+}
+
+.btnSocial {
+  padding: 1rem;
+  background: var(--exness-darker);
+  border: 1px solid var(--exness-border);
+  border-radius: 10px;
+  color: var(--exness-text);
+  cursor: pointer;
+  transition: all 0.3s ease;
+  font-family: 'Manrope', sans-serif;
+  font-weight: 500;
+}
+
+.btnSocial:hover {
+  border-color: var(--exness-gold);
+  background: rgba(255, 213, 79, 0.05);
+}
+
+.authFooter {
+  text-align: center;
+  color: var(--exness-text-dim);
+  font-size: 0.95rem;
+}
+
+.authFooter a {
+  color: var(--exness-gold);
+  text-decoration: none;
+  font-weight: 600;
+  transition: opacity 0.3s ease;
+}
+
+.authFooter a:hover {
+  opacity: 0.8;
+}
+
+.backButton {
+  position: absolute;
+  top: 2rem;
+  left: 2rem;
+  background: transparent;
+  border: 1px solid var(--exness-border);
+  color: var(--exness-text);
+  padding: 0.8rem 1.5rem;
+  border-radius: 8px;
+  cursor: pointer;
+  font-family: 'Manrope', sans-serif;
+  font-weight: 500;
+  transition: all 0.3s ease;
+  text-decoration: none;
+  display: inline-block;
+}
+
+.backButton:hover {
+  border-color: var(--exness-gold);
+  background: rgba(255, 213, 79, 0.05);
+}
+
+.checkboxGroup {
+  display: flex;
+  align-items: center;
+  margin-bottom: 1.5rem;
+}
+
+.checkboxGroup input[type="checkbox"] {
+  width: 18px;
+  height: 18px;
+  margin-right: 0.75rem;
+  cursor: pointer;
+  accent-color: var(--exness-gold);
+}
+
+.checkboxGroup label {
+  font-size: 0.9rem;
+  color: var(--exness-text-dim);
+  cursor: pointer;
+}
+
+@media (max-width: 768px) {
+  .socialLogin {
+    grid-template-columns: 1fr;
+  }
+
+  .backButton {
+    top: 1rem;
+    left: 1rem;
+  }
+}

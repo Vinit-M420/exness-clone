@@ -1,0 +1,8 @@
+Languages to be supported:
+English
+German
+Russian
+Spanish
+French
+Arabic
+Hebrew

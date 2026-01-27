@@ -108,6 +108,25 @@ They are a core part of how trading platforms automate decision-making.
 - Profit or loss is calculated using:
  `PnL = Exit Price − Entry Price`
 
+
+ #### Order Sides/Position
+
+When you are placing a order there's two sides for traders to pick: 
+`BUY` – Expecting the price to go up
+`SELL` – Expecting the price to go down
+This choice determines how profit and loss are calculated.
+
+BUY Position
+- You enter the trade at a price
+- You profit if the price increases
+- You lose if the price decreases
+
+SELL Position
+- You enter the trade at a price
+- You profit if the price decreases
+- You lose if the price increases
+ 
+
 #### Finnhub API
 
 - In this project, I have used Finnhub API *(free tier)* to fetch real-time market data. 
@@ -204,7 +223,23 @@ Closes open positions when:
 
     Redis is used as an execution cache, not as the source of truth.
 
-    Redis is used to cache
-    - active symbols (of the active orders)
-    - trigger prices of each limit orders
-    - Stop Loss / Take Profit prices of each limit orders
+    Redis is used to cache in following Data Structure
+    - SET: active symbols (of the active orders)
+    - ZSET: trigger prices of each limit orders
+    - ZSET: Stop Loss & Take Profit prices of each limit orders
+
+    Examples as follows:
+    - `SET active:symbol AAPL` 
+    - `ZADD trigger:AAPL:buy {triggerPrice} {orderId}`
+    - `ZADD sl:AAPL:sell {stopLoss} orderId`
+
+4. **Order Execution Flow**
+
+    User Places an Order:
+    → Order is Validated & stores in DB
+    → Redis cache updated
+    → WebSocket price update arrives
+    → Trigger evaluated
+    → Order opened / closed
+    → DB updated
+    → Frontend notified
