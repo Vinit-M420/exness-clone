@@ -9,7 +9,8 @@ Exness is a popular online trading platform built on MetaTrader 5 (MT5) and offe
 This project doesn't involve any real money or real market executions.
 It's not intended for actual trading and is purely built for learning purposes to avoid rules, regulations, and legal issues.
 
-### 🧑‍💻 Tech Stack
+
+### Tech Stack
 
 1. Bun
 2. Hono
@@ -19,7 +20,8 @@ It's not intended for actual trading and is purely built for learning purposes t
 6. Redis
 7. Finnhub API
 
-#### ❗️ Before we go over the backend, let's understand how trading works in this project, specially Contract-for-Difference (CFD) trading. Also what types of orders are supported in this Exness (clone).
+
+#### Before we go over the backend, let's understand how trading works in this project, specially Contract-for-Difference (CFD) trading. Also what types of orders are supported in this Exness (clone).
 
 #### Contract-for-Difference (CFD)
 In CFD trading, users do not buy or own the actual asset.
@@ -28,13 +30,13 @@ Instead they trade a contract that represents a bet on the price movement of tha
 - If a trader believes the price will go up, they place a Buy position.
 - If the trader believes the price will go down, they place a Sell position.
 
-**How profit & loss works**
+How profit & loss works
 
 - You enter a trade at a price
 - You exit the trade at a later price
 - Your profit or loss = difference between entry and exit price
 
-**Examples:**
+Examples:
 
 - Buy at 100 → Sell at 110 → Profit = +10
 - Sell at 100 → Buy back at 90 → Profit = +10
@@ -42,12 +44,12 @@ Instead they trade a contract that represents a bet on the price movement of tha
 
 #### Types of orders available in Exness (clone)
 
-1) **Market orders**
+1) Market orders
 - Executed immediately at the current market price
 - Used when the user wants instant entry or exit
 - Simplest and fastest order type
 
-2) **Limit orders**
+2) Limit orders
 - Executed only when the price reaches a specified level
 - Remains pending until the trigger price is met
 - Useful for entering trades at a better price
@@ -107,25 +109,6 @@ They are a core part of how trading platforms automate decision-making.
     - Take Profit hit
 - Profit or loss is calculated using:
  `PnL = Exit Price − Entry Price`
-
-
- #### Order Sides/Position
-
-When you are placing a order there's two sides for traders to pick: 
-`BUY` – Expecting the price to go up
-`SELL` – Expecting the price to go down
-This choice determines how profit and loss are calculated.
-
-BUY Position
-- You enter the trade at a price
-- You profit if the price increases
-- You lose if the price decreases
-
-SELL Position
-- You enter the trade at a price
-- You profit if the price decreases
-- You lose if the price increases
- 
 
 #### Finnhub API
 
@@ -223,23 +206,7 @@ Closes open positions when:
 
     Redis is used as an execution cache, not as the source of truth.
 
-    Redis is used to cache in following Data Structure
-    - SET: active symbols (of the active orders)
-    - ZSET: trigger prices of each limit orders
-    - ZSET: Stop Loss & Take Profit prices of each limit orders
-
-    Examples as follows:
-    - `SET active:symbol AAPL` 
-    - `ZADD trigger:AAPL:buy {triggerPrice} {orderId}`
-    - `ZADD sl:AAPL:sell {stopLoss} orderId`
-
-4. **Order Execution Flow**
-
-    User Places an Order:
-    → Order is Validated & stores in DB
-    → Redis cache updated
-    → WebSocket price update arrives
-    → Trigger evaluated
-    → Order opened / closed
-    → DB updated
-    → Frontend notified
+    Redis is used to cache
+    - active symbols (of the active orders)
+    - trigger prices of each limit orders
+    - Stop Loss / Take Profit prices of each limit orders
