@@ -1,19 +1,22 @@
-import type { Metadata } from 'next'
-import '../styles/globals.css'
+import { Inter } from "next/font/google";
+import "./globals.css";
 
-export const metadata: Metadata = {
-  title: 'Exness Clone - Trade CFDs with Real-Time Execution',
-  description: 'A demo trading platform inspired by Exness. Supports market & limit orders, stop-loss, take-profit, and live price updates.',
-}
+
+const inter = Inter({ 
+  subsets: ['latin'],
+  variable: '--font-inter'
+})
 
 export default function RootLayout({
   children,
 }: {
-  children: React.ReactNode
+  children: React.ReactNode;
 }) {
   return (
-    <html lang="en">
-      <body>{children}</body>
+    <html lang="en" className="dark">
+      <body className={`min-h-screen bg-[#050812] text-[#E8E9ED] ${inter.className}`}>
+        {children}
+      </body>
     </html>
-  )
+  );
 }
