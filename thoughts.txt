@@ -1,8 +1,8 @@
 Languages to be supported:
 English
-German
-Russian
-Spanish
-French
-Arabic
-Hebrew
+Deutsch
+русский
+español
+français
+العربية
+עִבְרִית
