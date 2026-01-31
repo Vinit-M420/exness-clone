@@ -1,4 +1,3 @@
-import dotenv from "dotenv";
 import { db } from "../db";
 import { Hono } from "hono";
 import { jwt } from "hono/jwt";
@@ -12,12 +11,11 @@ import { addSymbols, removeSymbols } from "../ws/activeSymbols";
 import { redisClient } from "../redis/client";
 // import { price } from "../../test/mock_pricefeed";
 import { checker } from "../funcs/checker";
-dotenv.config()
 
 const orderRouter = new Hono();
 
 orderRouter.use("/*",
-  jwt({ secret: process.env.JWT_SECRET! })
+  jwt({ secret: process.env.JWT_SECRET! , alg: "HS256",}),
 )
 
 orderRouter.use("/*", async (c, next) => {

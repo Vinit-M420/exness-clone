@@ -1,4 +1,3 @@
-import dotenv from "dotenv";
 import { db } from "../db";
 import { Hono } from "hono";
 import { eq } from "drizzle-orm"
@@ -6,7 +5,7 @@ import { users } from "../db/schema"
 import { UpdateEmailSchema, UpdatePwdSchema } from "../schemas/user_schema";
 import { HttpStatusCode } from "../schemas/http_response";
 import { jwt } from "hono/jwt";
-dotenv.config()
+
 
 const userRouter = new Hono()
 
@@ -14,6 +13,7 @@ const userRouter = new Hono()
 userRouter.use("/*",
   jwt({
     secret: process.env.JWT_SECRET!,
+    alg: "HS256",
   })
 )
 

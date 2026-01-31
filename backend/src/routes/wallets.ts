@@ -1,4 +1,3 @@
-import dotenv from "dotenv";
 import { db } from "../db";
 import { Hono } from "hono";
 import { jwt } from "hono/jwt";
@@ -6,13 +5,12 @@ import { HttpStatusCode } from "../schemas/http_response";
 import { wallet_transactions, wallets } from "../db/schema";
 import { eq, desc } from "drizzle-orm"
 
-dotenv.config()
-
 const walletRouter = new Hono();
 
 walletRouter.use("/*",
   jwt({
     secret: process.env.JWT_SECRET!,
+    alg: "HS256",
   })
 )
 
