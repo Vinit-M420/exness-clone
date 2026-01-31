@@ -8,15 +8,42 @@ import { Label } from '@/components/ui/label'
 import AuthLayout from '@/components/authLayout'
 import Navbar from '@/components/navbar'
 import BackgroundEffects from '@/components/BackgroundEffects'
+import { useRouter } from "next/navigation";
+
+const API_BASE = process.env.NEXT_PUBLIC_API_BASE;
 
 export default function LoginPage() {
   const [showPassword, setShowPassword] = useState(false)
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
+  const router = useRouter();
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
-    console.log('Login:', { email, password })
+    // console.log('Login:', { email, password })
+
+    try{
+       const response = await fetch(`${API_BASE}/api/v1/auth/login`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ email, password })
+       });
+
+       const data = await response.json().catch(() => ({}));
+
+       if (!response.ok){
+        alert(data.message || "Login failed");
+        return
+       }
+
+      if (response.ok) console.log(data.message || "Login successfully")
+      localStorage.setItem("token", data.token);
+      router.push("/dashboard");
+    }
+    catch(e){
+      console.error("Error logging in:", e);
+      alert("Network error. Please try again.");
+    }
   }
 
   return (
@@ -68,32 +95,32 @@ export default function LoginPage() {
             </div>
           </div>
 
-          {/* Sign In Button */}
+          {/* Log In Button */}
           <Button
             type="submit"
             className="mt-5 w-full h-12 bg-[#FFD700] hover:bg-[#FFC700] text-black font-semibold text-base transition-colors"
           >
-            Sign in
+            Log in
           </Button>
 
           {/* Divider */}
-          <div className="relative">
-            <div className="absolute inset-0 flex items-center">
-              <div className="w-full border-t border-gray-700"></div>
-            </div>
-            <div className="relative flex justify-center text-sm">
-              <span className="bg-(--exness-darker) px-4 text-gray-400">
-                Or sign in with
-              </span>
-            </div>
-          </div>
+          <div className="flex items-center gap-4">
+            <div className="flex-1 border-t border-gray-700" />
 
-          {/* Google Sign In */}
+            <span className="text-sm text-gray-400 whitespace-nowrap">
+              Or Log in with
+            </span>
+
+            <div className="flex-1 border-t border-gray-700" />
+         </div>
+
+
+          {/* Google Log In */}
           <Button
             type="button"
             variant="outline"
             className="w-full h-12 bg-gray-100 hover:bg-gray-200 text-gray-700 font-medium border-gray-300"
-            onClick={() => console.log('Google sign in')}
+            onClick={() => console.log('Google Log in')}
           >
             <svg className="mr-2 h-5 w-5" viewBox="0 0 24 24">
               <path

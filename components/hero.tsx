@@ -73,14 +73,29 @@ export default function Hero() {
             asChild
             size="lg"
             className="
-              group relative text-lg font-medium
-              bg-transparent
-              border-2 border-(--exness-border)
-              text-gray-100
+              group relative text-lg font-medium 
+              bg-transparent 
+              text-(--exness-text) 
+              border-2 border-[rgba(255,213,79,0.2)]
               hover:border-(--exness-gold)
-              hover:-translate-y-0.5
+              hover:bg-[rgba(255,213,79,0.05)]
+              hover:-translate-y-0.5 
               transition-all duration-300
               overflow-hidden
+              before:content-[''] 
+              before:absolute 
+              before:top-1/2 
+              before:left-1/2 
+              before:w-0 
+              before:h-0 
+              before:rounded-full 
+              before:bg-[rgba(255,213,79,0.1)]
+              before:-translate-x-1/2 
+              before:-translate-y-1/2 
+              before:transition-all 
+              before:duration-[0.6s] 
+              hover:before:w-[300px] 
+              hover:before:h-[300px]
             "
           >
             <Link href="/signup">

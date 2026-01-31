@@ -33,9 +33,9 @@ const languages = [
 export default function Navbar() {
   return (
     <nav className="fixed top-0 left-0 right-0 z-50 border-b border-gray-900/10 bg-background/10 backdrop-blur-sm">
-        <div className=" flex h-12 items-center justify-between mx-5!">
+        <div className="flex h-12 items-center justify-between mx-5">
             {/* Logo */}
-        <h1 className={`${poppins.className} text-2xl tracking-wide font-semibold text-[#FFD54F] ml-10`}>
+        <h1 className={`${poppins.className} text-2xl tracking-wide font-semibold text-amber-300 `}>
           <Link href="/">
           exness <span className='text-gray-100 tracking-tight'>(Clone)</span>
           </Link>
@@ -61,7 +61,7 @@ export default function Navbar() {
                     key={language.code}
                     className="cursor-pointer hover:bg-[rgba(255,213,79,0.1)] hover:text-amber-300 focus:bg-[rgba(255,213,79,0.1)] focus:text-amber-300 text-md h-8"
                     onClick={() => {
-                    // console.log(`Selected language: ${language.name}`)
+                    console.log(`Selected language: ${language.name}`)
                     // Language switching logic will go here
                     }}
                 >

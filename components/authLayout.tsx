@@ -32,7 +32,7 @@ export default function AuthLayout({ children }: AuthLayoutProps) {
                 : 'text-gray-400 hover:text-gray-300'
             }`}
           >
-            Sign in
+            Log in
           </Link>
           <Link
             href="/signup"

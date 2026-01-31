@@ -5,23 +5,50 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import AuthLayout from '@/components/authLayout'
-import Navbar from '@/components/navbar'
 import BackgroundEffects from '@/components/BackgroundEffects'
+import Navbar from "@/components/navbar";
+import { useRouter } from "next/navigation";
+
+const API_BASE = process.env.NEXT_PUBLIC_API_BASE;
 
 export default function SignupPage() {
   const [showPassword, setShowPassword] = useState(false)
+  const [name, setName] = useState("");
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
-
+  const router = useRouter();
   // Password validation states
   const hasLength = password.length >= 8 && password.length <= 15
   const hasUpperLower = /[a-z]/.test(password) && /[A-Z]/.test(password)
   const hasNumber = /\d/.test(password)
   const hasSpecial = /[!@#$%^&*(),.?":{}|<>]/.test(password)
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
-    console.log('Signup:', { email, password })
+    // console.log('Signup:', { email, password })
+
+    try{
+      const response = await fetch(`${API_BASE}/api/v1/auth/signup`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ name, email, password })
+       });
+
+      const data = await response.json().catch(() => ({}));
+
+      if (!response.ok){
+      alert(data.message || "Sign up failed");
+      return
+      }
+
+      //  if (response.ok) console.log(data.message || "Signup successfully")
+      localStorage.setItem("token", data.token);
+      router.push("/login");
+    }catch(e){
+      console.error("Error signing up:", e);
+      alert("Network error. Please try again.");
+    }
+
   }
 
   return (
@@ -30,6 +57,21 @@ export default function SignupPage() {
       <Navbar />
       <AuthLayout>
         <form onSubmit={handleSubmit} className="space-y-5">
+
+          <div className="space-y-2">
+            <Label htmlFor="email" className="text-sm font-medium text-(--exness-text)">
+              Your Name
+            </Label>
+            <Input
+              id="name"
+              type="name"
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+              className="h-12 bg-white border-gray-300 text-white placeholder:text-gray-400 focus:border-gray-400 focus:ring-0"
+              required
+            />
+          </div>
+
           {/* Email Input */}
           <div className="space-y-2">
             <Label htmlFor="email" className="text-sm font-medium text-(--exness-text)">
@@ -114,16 +156,15 @@ export default function SignupPage() {
           </Button>
 
           {/* Divider */}
-          <div className="relative">
-            <div className="absolute inset-0 flex items-center">
-              <div className="w-full border-t border-gray-700"></div>
-            </div>
-            <div className="relative flex justify-center text-sm">
-              <span className="bg-(--exness-darker) px-4 text-gray-400">
-                Or sign up with
-              </span>
-            </div>
-          </div>
+          <div className="flex items-center gap-4">
+            <div className="flex-1 border-t border-gray-700" />
+
+            <span className="text-sm text-gray-400 whitespace-nowrap">
+              Or create a account with
+            </span>
+
+            <div className="flex-1 border-t border-gray-700" />
+         </div>
 
           {/* Google Sign Up */}
           <Button

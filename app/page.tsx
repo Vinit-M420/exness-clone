@@ -1,7 +1,7 @@
 'use client'
 import BackgroundEffects from '@/components/BackgroundEffects'
 import Hero from '@/components/hero'
-import Navbar from '@/components/navbar'
+import Navbar from "@/components/navbar";
 
 
 
