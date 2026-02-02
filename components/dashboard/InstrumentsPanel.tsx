@@ -62,7 +62,7 @@ export default function InstrumentsPanel() {
   )
 
   return (
-    <div className="w-90 h-screen bg-[#1a1d2e] border-t-3 border-r-2 border-gray-800 flex flex-col">
+    <div className="w-80 h-screen bg-[#1a1d2e] border-t-3 border-r-2 border-gray-800 flex flex-col">
       {/* Header */}
       <div className="flex items-center justify-between px-4 py-3 border-b border-gray-800">
         <h2 className="text-sm font-medium text-gray-300 uppercase tracking-wide">
