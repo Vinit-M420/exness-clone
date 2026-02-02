@@ -1,5 +1,5 @@
 import { Hono } from "hono";
-import { symbols } from "../data/symbols";
+import { symbols } from "../../../data/symbols";
 
 const symbolsRouter = new Hono();
 

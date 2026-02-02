@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { AllSymbols } from "../data/allsymbols";
+import { AllSymbols } from "../../../data/allsymbols";
 
 export const SymbolEnum = z.enum(AllSymbols);
 export type Symbol = z.infer<typeof SymbolEnum>;
