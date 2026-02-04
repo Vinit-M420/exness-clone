@@ -1,24 +1,28 @@
 'use client'
 
 import { useState } from 'react'
-import { X, Info, Plus, Minus } from 'lucide-react'
+import { X, Plus, Minus } from 'lucide-react'
 import { Button } from '@/components/ui/button'
-import { Input } from '@/components/ui/input'
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
+import { InputGroup, InputGroupAddon, InputGroupInput } from '../ui/input-group'
+// import {DropdownMenu, DropdownMenuContent, DropdownMenuGroup, DropdownMenuItem, DropdownMenuTrigger } from '@radix-ui/react-dropdown-menu'
+import { TPSLInput } from '../TPSLinput'
 
 export default function OrderPlacingPanel() {
   const [orderType, setOrderType] = useState<'Market' | 'Pending'>('Market')
   const [volume, setVolume] = useState('0.01')
   const [takeProfit, setTakeProfit] = useState('')
   const [stopLoss, setStopLoss] = useState('')
-  const [sellPercentage, setSellPercentage] = useState(55)
+  const [sellPercentage] = useState(55);
+  const [tpMode, setTpMode] = useState<'Price' | 'Points'>('Price')
+  const [slMode, setSlMode] = useState<'Price' | 'Points'>('Price')
+
 
   const sellPrice = '4,242.41'
   const buyPrice = '4,242.57'
   const spread = '0.16 USD'
 
   return (
-    <div className="w-[400px] h-screen bg-[#1a1d2e] border-l border-gray-800 flex flex-col">
+    <div className="w-80 h-[calc(100vh-48px)] bg-[#1a1d2e] border-l border-gray-800 flex flex-col z-10">
       {/* Header */}
       <div className="flex items-center justify-between px-4 py-3 border-b border-gray-800">
         <div className="flex items-center gap-2">
@@ -39,7 +43,7 @@ export default function OrderPlacingPanel() {
       {/* Content */}
       <div className="flex-1 overflow-y-auto p-4 space-y-4">
         {/* Order Type Dropdown */}
-        <div>
+        {/* <div>
           <Select defaultValue="regular">
             <SelectTrigger className="w-full bg-[#0f1118] border-gray-700 text-gray-300 h-11">
               <SelectValue placeholder="Select order type" />
@@ -49,7 +53,7 @@ export default function OrderPlacingPanel() {
               <SelectItem value="advanced" className="text-gray-300">Advanced form</SelectItem>
             </SelectContent>
           </Select>
-        </div>
+        </div> */}
 
         {/* Sell / Buy Cards */}
         <div className="grid grid-cols-2 gap-3">
@@ -113,21 +117,22 @@ export default function OrderPlacingPanel() {
 
         {/* Volume */}
         <div className="space-y-2">
-          <label className="text-sm text-gray-400">Volume</label>
+          <div className="flex items-center justify-between">
+            <label className="text-sm text-gray-400">Volume</label>
+          </div>
           <div className="flex items-center gap-2">
-            <Input
-              type="text"
-              value={volume}
-              onChange={(e) => setVolume(e.target.value)}
-              className="flex-1 bg-[#0f1118] border-gray-700 text-gray-300 h-11"
-            />
-            <Button
-              variant="outline"
-              size="sm"
-              className="bg-[#0f1118] border-gray-700 text-gray-400 hover:text-gray-300 hover:bg-gray-800 h-11 px-4"
-            >
-              Lots
-            </Button>
+            <div className="flex-1 flex rounded-lg border border-gray-700 bg-transparent overflow-hidden">
+              <InputGroup>
+                <InputGroupInput
+                  type="text"
+                  value={volume}
+                  onChange={(e) => setVolume(e.target.value)}
+                  className="border-0 text-gray-300 h-11 focus-visible:ring-0 focus-visible:ring-offset-0"
+                />
+                <InputGroupAddon align="inline-end" className='text-sm text-gray-400'>Lots</InputGroupAddon>
+              </InputGroup>
+            </div>
+            
             <Button
               variant="ghost"
               size="icon"
@@ -147,85 +152,22 @@ export default function OrderPlacingPanel() {
           </div>
         </div>
 
-        {/* Take Profit */}
-        <div className="space-y-2">
-          <div className="flex items-center justify-between">
-            <label className="text-sm text-gray-400">Take Profit</label>
-            <Info className="h-4 w-4 text-gray-500" />
-          </div>
-          <div className="flex items-center gap-2">
-            <Input
-              type="text"
-              value={takeProfit}
-              onChange={(e) => setTakeProfit(e.target.value)}
-              placeholder="Not set"
-              className="flex-1 bg-[#0f1118] border-gray-700 text-gray-300 placeholder:text-gray-500 h-11"
-            />
-            <Select defaultValue="price">
-              <SelectTrigger className="w-24 bg-[#0f1118] border-gray-700 text-gray-400 h-11">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent className="bg-[#1a1d2e] border-gray-700">
-                <SelectItem value="price" className="text-gray-300">Price</SelectItem>
-                <SelectItem value="pips" className="text-gray-300">Pips</SelectItem>
-              </SelectContent>
-            </Select>
-            <Button
-              variant="ghost"
-              size="icon"
-              className="h-11 w-11 text-gray-400 hover:text-gray-300 hover:bg-gray-800"
-            >
-              <Minus className="h-4 w-4" />
-            </Button>
-            <Button
-              variant="ghost"
-              size="icon"
-              className="h-11 w-11 text-gray-400 hover:text-gray-300 hover:bg-gray-800"
-            >
-              <Plus className="h-4 w-4" />
-            </Button>
-          </div>
-        </div>
+        <TPSLInput
+          label="Take Profit"
+          value={takeProfit}
+          onChange={setTakeProfit}
+          mode={tpMode}
+          onModeChange={setTpMode}
+        />
 
-        {/* Stop Loss */}
-        <div className="space-y-2">
-          <div className="flex items-center justify-between">
-            <label className="text-sm text-gray-400">Stop Loss</label>
-            <Info className="h-4 w-4 text-gray-500" />
-          </div>
-          <div className="flex items-center gap-2">
-            <Input
-              type="text"
-              value={stopLoss}
-              onChange={(e) => setStopLoss(e.target.value)}
-              placeholder="Not set"
-              className="flex-1 bg-[#0f1118] border-gray-700 text-gray-300 placeholder:text-gray-500 h-11"
-            />
-            <Select defaultValue="price">
-              <SelectTrigger className="w-24 bg-[#0f1118] border-gray-700 text-gray-400 h-11">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent className="bg-[#1a1d2e] border-gray-700">
-                <SelectItem value="price" className="text-gray-300">Price</SelectItem>
-                <SelectItem value="pips" className="text-gray-300">Pips</SelectItem>
-              </SelectContent>
-            </Select>
-            <Button
-              variant="ghost"
-              size="icon"
-              className="h-11 w-11 text-gray-400 hover:text-gray-300 hover:bg-gray-800"
-            >
-              <Minus className="h-4 w-4" />
-            </Button>
-            <Button
-              variant="ghost"
-              size="icon"
-              className="h-11 w-11 text-gray-400 hover:text-gray-300 hover:bg-gray-800"
-            >
-              <Plus className="h-4 w-4" />
-            </Button>
-          </div>
-        </div>
+        <TPSLInput
+          label="Stop Loss"
+          value={stopLoss}
+          onChange={setStopLoss}
+          mode={slMode}
+          onModeChange={setSlMode}
+        />
+
       </div>
 
       {/* Footer - Action Buttons */}

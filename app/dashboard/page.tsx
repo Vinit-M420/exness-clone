@@ -4,12 +4,14 @@ import Navbar from '@/components/navbar'
 import InstrumentsPanel from '@/components/dashboard/InstrumentsPanel'
 import OrderTabs from '@/components/dashboard/OrdersTab'
 import OrderPlacingPanel from '@/components/dashboard/OrderPlacingPanel'
+import BackgroundEffects from '@/components/BackgroundEffects'
 
 export default function DashboardPage() {
   return (
     <>
-      {/* <Navbar />   */}
-      <div className="relative z-10 flex h-[calc(100vh-64px)]">
+      <BackgroundEffects />
+      <Navbar />  
+      <div className="relative z-10 flex mt-12 h-[calc(100vh-64px)]">
         {/* Left Sidebar - Instruments Panel */}
         <InstrumentsPanel />
         
