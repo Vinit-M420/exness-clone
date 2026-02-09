@@ -94,19 +94,19 @@ export default function InstrumentsPanel() {
 
       {/* Table */}
       <div className="flex-1 overflow-hidden flex flex-col">
-        <Table className="w-full">
-          <TableHeader>
+        <Table className="w-full table-fixed ">
+          <TableHeader className="sticky top-0 z-10 bg-[#1a1d2e]">
             <TableRow className="border-b border-gray-800 hover:bg-transparent">
-              <TableHead className="text-xs text-gray-500 font-normal h-10 w-[33.33%]">
+              <TableHead className="text-xs text-gray-500 font-normal w-[33.33%] text-center">
                 Symbol
               </TableHead>
-              <TableHead className="text-xs text-gray-500 font-normal h-10 w-[16.67%] text-center">
+              <TableHead className="text-xs text-gray-500 font-normal w-[16.67%] text-center">
                 Signal
               </TableHead>
-              <TableHead className="text-xs text-gray-500 font-normal h-10 w-[23.33%] text-right">
+              <TableHead className="text-xs text-gray-500 font-normal w-[33.33%] text-center">
                 Bid
               </TableHead>
-              <TableHead className="text-xs text-gray-500 font-normal h-10 w-[16.67%] text-right">
+              <TableHead className="text-xs text-gray-500 font-normal w-[16.67%] text-center">
                 Ask
               </TableHead>
             </TableRow>

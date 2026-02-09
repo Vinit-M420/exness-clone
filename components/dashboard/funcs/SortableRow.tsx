@@ -31,7 +31,7 @@ export function SortableRow({ item }: SortableRowProps) {
       className="hover:bg-[#1f2333] border-b border-gray-800/50 group"
     >
       {/* Symbol */}
-      <TableCell className="py-2 w-[33.33%]">
+      <TableCell className="py-2 w-[33.33%] border-r border-gray-800">
         <div className="flex items-center gap-2">
           <button
             className="cursor-grab active:cursor-grabbing text-gray-600 hover:text-gray-400"
