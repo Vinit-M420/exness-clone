@@ -1,10 +1,11 @@
 import { db } from "../db";
 import { Hono } from "hono";
 import { eq } from "drizzle-orm"
-import { users } from "../db/schema"
+import { users, users_watchlist } from "../db/schema"
 import { UserSigninSchema, UserSignupSchema } from "../schemas/user_schema";
 import { HttpStatusCode } from "../schemas/http_response";
 import { sign } from "hono/jwt";
+import { topsymbols } from "../../../data/topsymbols";
 
 const authRouter = new Hono();
 
@@ -38,7 +39,24 @@ authRouter.post("/signup", async (c) =>{
 
     try{
         const hashedPass = await Bun.password.hash(password, { algorithm: "bcrypt"});
-        await db.insert(users).values({name, email, password: hashedPass});
+        const [insertedUser] = await db
+                            .insert(users)
+                            .values({ name, email, password: hashedPass })
+                            .returning({ id: users.id });
+        if (!insertedUser) 
+            return c.json({ message: "Failed to create user" }, HttpStatusCode.ServerError);
+        
+        const userId = insertedUser.id; 
+        const watchlistEntries = topsymbols.map((sym, index) => ({
+            userId,
+            symbol: sym.symbol,
+            orderIndex: index + 1,
+            createdAt: new Date(),
+            updatedAt: new Date(),
+        }));
+
+        await db.insert(users_watchlist).values(watchlistEntries);
+
         return c.json({ message: "User created Successfully" }, HttpStatusCode.Ok)
     } catch(err){
         return c.json( {

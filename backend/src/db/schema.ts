@@ -5,6 +5,8 @@ import {
   text,
   timestamp,
   numeric,
+  integer,
+  unique
 } from "drizzle-orm/pg-core";
 
 
@@ -15,6 +17,21 @@ export const users = pgTable("users", {
   password: text("password").notNull(),
   createdAt: timestamp("created_at").defaultNow(),
 } ,(table) => [ index("emailIndex").on(table.email) ]
+);
+
+export const users_watchlist = pgTable("users_watchlist", {
+  id: uuid("id").defaultRandom().primaryKey(),
+  userId: uuid("user_id").notNull(),
+  symbol: text("symbol").notNull(),
+  orderIndex: integer("orderIndex").notNull(),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at"),
+},
+  (table) => {
+    return {
+      userSymbolUnique: unique().on(table.userId, table.symbol),
+    };
+  }
 );
 
 export const wallets = pgTable("wallets", {

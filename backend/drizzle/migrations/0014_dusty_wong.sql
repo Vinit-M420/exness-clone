@@ -1,0 +1,1 @@
+ALTER TABLE "users_watchlist" DROP CONSTRAINT "users_watchlist_user_id_unique";

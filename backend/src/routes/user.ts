@@ -1,10 +1,11 @@
 import { db } from "../db";
 import { Hono } from "hono";
 import { eq } from "drizzle-orm"
-import { users } from "../db/schema"
+import { users, users_watchlist } from "../db/schema"
 import { UpdateEmailSchema, UpdatePwdSchema } from "../schemas/user_schema";
 import { HttpStatusCode } from "../schemas/http_response";
 import { jwt } from "hono/jwt";
+import { Watchlist_Schema } from "../schemas/watchlist_schema";
 
 
 const userRouter = new Hono()
@@ -105,5 +106,68 @@ userRouter.put("/email", async (c) => {
         }, HttpStatusCode.ServerError)
     }
 });
+
+userRouter.get("/watchlist", async (c) => {
+    const payload = c.get("jwtPayload");
+    if (!payload) return c.json({ message: "Unauthorized" }, HttpStatusCode.Unauthorized);
+    const userId = payload.id;
+
+
+    const symbolList = await db.select()
+                    .from(users_watchlist)
+                    .where(eq(users_watchlist.userId, userId));
+
+    if (symbolList.length === 0 || !symbolList){ 
+        return c.json({ "message": "No watchlist symbols found" }, HttpStatusCode.NotFound);               
+    }
+
+    return c.json({ message: "Watchlist returned", symbolList }, HttpStatusCode.Ok); 
+    
+});
+
+userRouter.put("/watchlist", async (c) => {
+  const payload = c.get("jwtPayload");
+  if (!payload) {
+    return c.json(
+      { message: "Unauthorized" },
+      HttpStatusCode.Unauthorized
+    );
+  }
+
+  const body = await c.req.json(); // ✅ must await
+
+  const parsed = Watchlist_Schema.safeParse(body);
+
+  if (!parsed.success) {
+    return c.json(
+      {
+        message: "Watchlist has incorrect format",
+        errors: parsed.error.flatten(),
+      },
+      HttpStatusCode.BadRequest
+    );
+  }
+
+  const userId = payload.id;
+  const symbols = parsed.data; 
+
+  await db.transaction(async (tx) => {
+    await tx
+      .delete(users_watchlist)
+      .where(eq(users_watchlist.userId, userId));
+
+    await tx.insert(users_watchlist).values(
+      symbols.map((item: { symbol: string; orderIndex: number; }) => ({
+        userId,
+        symbol: item.symbol,
+        orderIndex: item.orderIndex,
+        updatedAt: new Date(), 
+      }))
+    );
+  });
+
+  return c.json({ message: "Watchlist updated" });
+});
+
 
 export default userRouter;
