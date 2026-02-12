@@ -9,7 +9,6 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { Command, CommandEmpty, CommandGroup, CommandItem, CommandList } from "@/components/ui/command"
 import { AllSymbols_Metadata } from '@/data/allsymbols'
 import { SymbolType } from '@/types/symbolType'
-// import { topsymbols } from '@/data/topsymbols'
 import { SortableRow } from './funcs/SortableRow'
 import { DndContext, closestCenter, KeyboardSensor, PointerSensor, useSensor, useSensors, DragEndEvent, } from '@dnd-kit/core'
 import { arrayMove, SortableContext,  sortableKeyboardCoordinates, verticalListSortingStrategy,} from '@dnd-kit/sortable'
@@ -76,7 +75,6 @@ export default function InstrumentsPanel() {
     }
   }
 
-
   useEffect(() => {
     if (jwtToken && symbols.length > 0) {
       updateWatchlistOnServer(symbols, jwtToken);
@@ -104,14 +102,14 @@ export default function InstrumentsPanel() {
 
   const addSymbolToList = (symbol: SymbolType) => {
     setSymbols((prev) => {
-      // prevent duplicates by symbol code
       const exists = prev.some(
         (s) => s.symbol === symbol.symbol
       )
       if (exists) return prev
-      return [...prev, symbol]
-    })
-
+      const updated  = [...prev, symbol]
+      if (jwtToken) updateWatchlistOnServer(updated, jwtToken);
+      return updated;
+    });
     setOpen(false)
     setSearchQuery('')
   }

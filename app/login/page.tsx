@@ -1,7 +1,7 @@
 'use client'
 import { useState } from 'react'
 import Link from 'next/link'
-import { Eye, EyeOff } from 'lucide-react'
+import { Eye, EyeOff, Loader2 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
@@ -13,14 +13,16 @@ import { useRouter } from "next/navigation";
 const API_BASE = process.env.NEXT_PUBLIC_API_BASE;
 
 export default function LoginPage() {
-  const [showPassword, setShowPassword] = useState(false)
-  const [email, setEmail] = useState('')
-  const [password, setPassword] = useState('')
+  const [showPassword, setShowPassword] = useState(false);
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [isLoading, setIsLoading] = useState(false);
   const router = useRouter();
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     // console.log('Login:', { email, password })
+    setIsLoading(true);
 
     try{
        const response = await fetch(`${API_BASE}/api/v1/auth/login`, {
@@ -33,12 +35,15 @@ export default function LoginPage() {
 
        if (!response.ok){
         alert(data.message || "Login failed");
+        setIsLoading(false);
         return
        }
 
-      if (response.ok) console.log(data.message || "Login successfully")
+      if (response.ok){
       localStorage.setItem("token", data.token);
+      setIsLoading(false);
       router.push("/dashboard");
+      }
     }
     catch(e){
       console.error("Error logging in:", e);
@@ -98,9 +103,10 @@ export default function LoginPage() {
           {/* Log In Button */}
           <Button
             type="submit"
+            disabled={isLoading || !email || !password}
             className="mt-5 w-full h-12 bg-[#FFD700] hover:bg-[#FFC700] text-black font-semibold text-base transition-colors"
           >
-            Log in
+            {isLoading ? (<><Loader2 className="w-5 h-5 animate-spin" />Logging In...</>) : ('Log In')}
           </Button>
 
           {/* Divider */}

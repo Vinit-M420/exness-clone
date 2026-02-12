@@ -1,6 +1,6 @@
 'use client'
 import { useState } from 'react'
-import { Eye, EyeOff } from 'lucide-react'
+import { Eye, EyeOff, Loader2 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
@@ -12,10 +12,12 @@ import { useRouter } from "next/navigation";
 const API_BASE = process.env.NEXT_PUBLIC_API_BASE;
 
 export default function SignupPage() {
-  const [showPassword, setShowPassword] = useState(false)
+  const [showPassword, setShowPassword] = useState(false);
   const [name, setName] = useState("");
-  const [email, setEmail] = useState('')
-  const [password, setPassword] = useState('')
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [isLoading, setIsLoading] = useState(false);
+  
   const router = useRouter();
   // Password validation states
   const hasLength = password.length >= 8 && password.length <= 15
@@ -25,7 +27,7 @@ export default function SignupPage() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
-    // console.log('Signup:', { email, password })
+    setIsLoading(true);
 
     try{
       const response = await fetch(`${API_BASE}/api/v1/auth/signup`, {
@@ -38,11 +40,13 @@ export default function SignupPage() {
 
       if (!response.ok){
       alert(data.message || "Sign up failed");
+      setIsLoading(false);
       return
       }
 
       //  if (response.ok) console.log(data.message || "Signup successfully")
       localStorage.setItem("token", data.token);
+      setIsLoading(false);
       router.push("/login");
     }catch(e){
       console.error("Error signing up:", e);
@@ -150,9 +154,10 @@ export default function SignupPage() {
           <Button
             type="submit"
             className="w-full h-12 bg-[#FFD700] hover:bg-[#FFC700] text-black font-semibold text-base transition-colors"
-            disabled={!hasLength || !hasUpperLower || !hasNumber || !hasSpecial || !email}
+            disabled={!hasLength || !hasUpperLower || !hasNumber || !hasSpecial || !email || isLoading}
           >
-            Register
+            
+            {isLoading ? (<><Loader2 className="w-5 h-5 animate-spin" />Registering...</>) : ('Register')}
           </Button>
 
           {/* Divider */}
