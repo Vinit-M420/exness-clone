@@ -1,4 +1,4 @@
-import { FSymbol } from "@/types/Fsymbol";
+import { FSymbol } from "@/types/symbolType";
 import { CSS } from '@dnd-kit/utilities'
 import { TableCell, TableRow } from "@/components/ui/table";
 import { useSortable } from "@dnd-kit/sortable";
