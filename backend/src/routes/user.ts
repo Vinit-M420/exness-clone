@@ -7,9 +7,7 @@ import { HttpStatusCode } from "../schemas/http_response";
 import { jwt } from "hono/jwt";
 import { Watchlist_Schema } from "../schemas/watchlist_schema";
 
-
 const userRouter = new Hono()
-
 
 userRouter.use("/*",
   jwt({
@@ -113,16 +111,16 @@ userRouter.get("/watchlist", async (c) => {
     const userId = payload.id;
 
 
-    const symbolList = await db.select()
+    const symbolList = await db.select({symbol: users_watchlist.symbol, orderIndex: users_watchlist.orderIndex})
                     .from(users_watchlist)
-                    .where(eq(users_watchlist.userId, userId));
+                    .where(eq(users_watchlist.userId, userId))
+                    .orderBy(users_watchlist.orderIndex);
 
     if (symbolList.length === 0 || !symbolList){ 
         return c.json({ "message": "No watchlist symbols found" }, HttpStatusCode.NotFound);               
     }
 
     return c.json({ message: "Watchlist returned", symbolList }, HttpStatusCode.Ok); 
-    
 });
 
 userRouter.put("/watchlist", async (c) => {
@@ -134,8 +132,7 @@ userRouter.put("/watchlist", async (c) => {
     );
   }
 
-  const body = await c.req.json(); // ✅ must await
-
+  const body = await c.req.json();
   const parsed = Watchlist_Schema.safeParse(body);
 
   if (!parsed.success) {
