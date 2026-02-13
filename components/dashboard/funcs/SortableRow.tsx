@@ -1,14 +1,27 @@
-import { FSymbol } from "@/types/symbolType";
+import { SymbolType } from "@/types/symbolType";
 import { CSS } from '@dnd-kit/utilities'
 import { TableCell, TableRow } from "@/components/ui/table";
 import { useSortable } from "@dnd-kit/sortable";
-import { GripVertical } from "lucide-react";
+import { GripVertical, Trash2 } from "lucide-react";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog"
+import { Button } from "@/components/ui/button";
 
 interface SortableRowProps {
-  item: FSymbol
+  item: SymbolType
+  onDelete: (symbol: string) => void
 }
 
-export function SortableRow({ item }: SortableRowProps) {
+export function SortableRow({ item, onDelete }: SortableRowProps) {
   const {
     attributes,
     listeners,
@@ -32,22 +45,59 @@ export function SortableRow({ item }: SortableRowProps) {
     >
       {/* Symbol */}
       <TableCell className="py-2 w-[33.33%] border-r border-gray-800">
-        <div className="flex items-center gap-2">
-          <button
-            className="cursor-grab active:cursor-grabbing text-gray-600 hover:text-gray-400"
-            {...attributes}
-            {...listeners}
-          >
-            <GripVertical className="size-4" />
-          </button>
-          <div className="text-sm font-medium text-gray-200 truncate">
-            {item.symbol.replace('BINANCE:', '')}
+        <div className="flex items-center justify-between gap-2">
+          <div className="flex items-center gap-2 flex-1 min-w-0">
+            <button
+              className="cursor-grab active:cursor-grabbing text-gray-600 hover:text-gray-400 shrink-0"
+              {...attributes}
+              {...listeners}
+            >
+              <GripVertical className="size-4" />
+            </button>
+            <div className="text-sm font-medium text-gray-200 truncate">
+              {item.symbol.replace('BINANCE:', '')}
+            </div>
           </div>
+
+          {/* Delete Button - Shows on Hover */}
+          <AlertDialog>
+            <AlertDialogTrigger asChild>
+              <Button
+                variant="ghost"
+                size="icon"
+                className="h-6 w-6 opacity-0 group-hover:opacity-100 transition-opacity text-gray-500 hover:text-red-400 hover:bg-red-500/10 shrink-0"
+                onClick={(e) => e.stopPropagation()}
+              >
+                <Trash2 className="h-3.5 w-3.5" />
+              </Button>
+            </AlertDialogTrigger>
+            <AlertDialogContent className="bg-[#1a1d2e] border-gray-700">
+              <AlertDialogHeader>
+                <AlertDialogTitle className="text-gray-200">
+                  Remove from watchlist?
+                </AlertDialogTitle>
+                <AlertDialogDescription className="text-gray-400">
+                  Are you sure you want to remove <span className="font-semibold text-gray-300">{item.symbol}</span> from your watchlist?
+                </AlertDialogDescription>
+              </AlertDialogHeader>
+              <AlertDialogFooter>
+                <AlertDialogCancel className="bg-transparent border-gray-700 text-gray-300 hover:bg-gray-800 hover:text-gray-200">
+                  Cancel
+                </AlertDialogCancel>
+                <AlertDialogAction
+                  onClick={() => onDelete(item.symbol)}
+                  className="bg-red-600 hover:bg-red-700 text-white"
+                >
+                  Remove
+                </AlertDialogAction>
+              </AlertDialogFooter>
+            </AlertDialogContent>
+          </AlertDialog>
         </div>
       </TableCell>
 
       {/* Signal Indicator */}
-      <TableCell className="py-2 w-[16.67%]">
+      {/* <TableCell className="py-2 w-[16.67%]">
         <div className="flex items-center justify-center">
           <div className={`w-6 h-6 rounded ${item.isUp ? 'bg-green-500/20' : 'bg-red-500/20'} flex items-center justify-center`}>
             <div
@@ -56,21 +106,21 @@ export function SortableRow({ item }: SortableRowProps) {
             />
           </div>
         </div>
-      </TableCell>
+      </TableCell> */}
 
       {/* Bid */}
-      <TableCell className="py-2 w-[33.33%]">
+      {/* <TableCell className="py-2 w-[33.33%]">
         <div className={`flex items-center justify-end text-sm font-mono ${item.isUp ? 'text-green-400' : 'text-red-400'} ${item.isUp ? 'bg-green-500/10' : 'bg-red-500/10'} px-2 rounded`}>
           {item.price}
         </div>
-      </TableCell>
+      </TableCell> */}
 
       {/* Ask */}
-      <TableCell className="py-2 w-[16.67%]">
+      {/* <TableCell className="py-2 w-[16.67%]">
         <div className="flex items-center justify-end text-sm font-mono text-gray-400">
           {item.bid}
         </div>
-      </TableCell>
+      </TableCell> */}
     </TableRow>
   )
 }
