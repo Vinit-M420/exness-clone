@@ -1,6 +1,5 @@
-'use client'
-
-import { useEffect, useState } from 'react'
+'use client';
+import { useEffect, useState, useRef } from 'react'
 import { Search as SearchIcon, X, MoreVertical, Plus, } from 'lucide-react'
 import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
@@ -13,22 +12,24 @@ import { SortableRow } from './funcs/SortableRow'
 import { DndContext, closestCenter, KeyboardSensor, PointerSensor, useSensor, useSensors, DragEndEvent, } from '@dnd-kit/core'
 import { arrayMove, SortableContext,  sortableKeyboardCoordinates, verticalListSortingStrategy,} from '@dnd-kit/sortable'
 import { updateWatchlistOnServer } from './funcs/updateWatchlistOnServer'
-// import { deriveSignal } from './funcs/deriveSignal'
-
-// type Ticker = {
-//   price: number;
-//   timestamp: number;
-//   signal: any
-// };
+import { deriveSignal } from './funcs/deriveSignal'
+import { deriveAsk, deriveBid } from './funcs/deriveAskBid';
+import { Ticker } from '@/types/tickerType';
 
 export default function InstrumentsPanel() {
   const [searchQuery, setSearchQuery] = useState('');
   const [open, setOpen] = useState(false);
-  const jwtToken = localStorage.getItem("token")
+  const [jwtToken, setJwtToken] = useState<string | null>(null)
   const [symbols, setSymbols] = useState<SymbolType[]>([]);
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const [loading, setLoading] = useState(true);
-  // const [tickers, setTickers] = useState<Record<string, Ticker>>({});
+  const [tickers, setTickers] = useState<Record<string, Ticker>>({});
+  const wsRef = useRef<WebSocket | null>(null);
+
+  useEffect(() => {
+    const token = localStorage.getItem("token");
+    setJwtToken(token);
+  }, [])
 
   useEffect(() => {
     const fetchWatchlist = async () => {
@@ -41,6 +42,7 @@ export default function InstrumentsPanel() {
         );
 
         if (!res.ok) {
+          console.log("res:" , res);
           console.log("No watchlist found");
           setLoading(false);
           return;
@@ -53,6 +55,15 @@ export default function InstrumentsPanel() {
           (a: any, b: any) => a.orderIndex - b.orderIndex
         );
         setSymbols(sorted);
+        if (wsRef.current?.readyState === WebSocket.OPEN) {
+          sorted.forEach((s: { symbol: SymbolType; }) => {
+            wsRef.current?.send(JSON.stringify({
+              type: "subscribe",
+              symbol: s.symbol
+            }));
+          });
+        }
+
       } catch (err) {
         console.error("Failed to fetch watchlist", err);
       } finally {
@@ -116,18 +127,24 @@ export default function InstrumentsPanel() {
     }
   )
 
-  const addSymbolToList = (symbol: SymbolType) => {
-    setSymbols((prev) => {
-      const exists = prev.some(
-        (s) => s.symbol === symbol.symbol
-      )
-      if (exists) return prev
-      const updated  = [...prev, symbol]
-      if (jwtToken) updateWatchlistOnServer(updated, jwtToken);
-      return updated;
-    });
-    setOpen(false)
-    setSearchQuery('')
+  const addSymbolToList =  async (symbol: SymbolType) => {
+    const exists = symbols.some((s) => s.symbol === symbol.symbol);
+      if (exists) return;
+
+      const updated = [...symbols, symbol];
+      setSymbols(updated);
+
+      if (jwtToken) 
+        await updateWatchlistOnServer(updated, jwtToken);
+      
+      if (wsRef.current?.readyState === WebSocket.OPEN) {
+        wsRef.current.send(JSON.stringify({
+          type: "subscribe",
+          symbol: symbol.symbol
+        }));
+      }
+      setOpen(false);
+      setSearchQuery("");
   }
 
    const sensors = useSensors(
@@ -136,6 +153,79 @@ export default function InstrumentsPanel() {
       coordinateGetter: sortableKeyboardCoordinates,
     })
   )
+
+  useEffect(() => {
+    const ws = new WebSocket(`${process.env.NEXT_PUBLIC_WS_API_BASE}`);
+    wsRef.current = ws;
+    ws.onopen = () => {
+      console.log("Connected to backend WS");
+
+      // Subscribe to symbols currently visible in panel
+      symbols.forEach((s) => {
+        ws.send(JSON.stringify({
+          type: "subscribe",
+          symbol: s.symbol
+        }));  
+      });
+    };
+
+    ws.onmessage = (event) => {
+      // console.log("Raw WS message:", event.data);
+      if (typeof event.data !== "string" || !event.data.startsWith("{")) 
+        return;
+  
+      try {
+        const tick = JSON.parse(event.data);
+        // console.log("Parsed tick:", tick);
+        if (tick.type !== "trade" || !Array.isArray(tick.data)) return;
+
+        // if (tick?.length > 0) {
+        //   const latest = tick[tick.length - 1];
+        // console.log("Latest: ", latest);
+
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const latestPerSymbol: Record<string, any> = {};
+
+        for (const trade of tick.data) {
+          latestPerSymbol[trade.s] = trade; 
+          // Last one wins (latest in array)
+        }
+        
+        setTickers((prev) => {
+          const updated = { ...prev };
+
+          for (const symbol in latestPerSymbol) {
+            const trade = latestPerSymbol[symbol];
+            const previous = prev[symbol];
+
+            updated[symbol] = {
+              price: trade.p,
+              timestamp: trade.t,
+              signal: deriveSignal(previous?.price, trade.p),
+              ask: deriveAsk(trade.p),
+              bid: deriveBid(trade.p)
+            };
+        }
+        // console.log(updated);
+        return updated;
+      });
+      } catch (e) {
+        console.error("Invalid JSON from WS:", event.data, "Error:", e);
+      }
+  };
+
+    ws.onclose = () => {
+      console.log("Disconnected from backend WS");
+    };
+
+    ws.onerror = (err) => {
+      console.error("Frontend WS error:", err);
+    };
+
+    return () => {
+      ws.close();
+    };
+  }, [symbols]);
 
   return (
     <div className="w-80 h-[calc(100vh-48px)] bg-[#1a1d2e] border-t-3 border-r-2 border-gray-800 flex flex-col">
@@ -271,6 +361,7 @@ export default function InstrumentsPanel() {
                     <SortableRow 
                       key={item.symbol} 
                       item={item}
+                      ticker={tickers[item.symbol]}
                       onDelete={handleDelete}
                     />
                   ))}

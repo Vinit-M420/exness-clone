@@ -2,11 +2,9 @@ export type SymbolType  = {
   symbol: string
   name: string
   type: string
-  // price: string
-  // change: string
-  // isUp: true
-  // bid: string
-  // ask: string
+  signal?:  "buy" | "sell" | "neutral"
+  bid?: number
+  ask?: number
 }
 
 

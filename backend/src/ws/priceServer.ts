@@ -46,12 +46,13 @@ Bun.serve({
 
     message(ws, message) {
       const raw = message.toString();
+      if (!raw) return ;
       const parsed = JSON.parse(raw);
       // console.log("Parsed Message:" , parsed);
 
       if (isSubscription(parsed)){
         subscribeSymbol(parsed.symbol);
-        ws.send("Subscribed to " + parsed.symbol)
+        // ws.send("Subscribed to " + parsed.symbol)
       }
     },
 

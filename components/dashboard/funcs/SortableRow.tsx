@@ -3,25 +3,18 @@ import { CSS } from '@dnd-kit/utilities'
 import { TableCell, TableRow } from "@/components/ui/table";
 import { useSortable } from "@dnd-kit/sortable";
 import { GripVertical, Trash2 } from "lucide-react";
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-  AlertDialogTrigger,
-} from "@/components/ui/alert-dialog"
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription,
+         AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,  AlertDialogTrigger, } from "@/components/ui/alert-dialog"
 import { Button } from "@/components/ui/button";
+import { Ticker } from "@/types/tickerType";
 
 interface SortableRowProps {
   item: SymbolType
+  ticker?: Ticker
   onDelete: (symbol: string) => void
 }
 
-export function SortableRow({ item, onDelete }: SortableRowProps) {
+export function SortableRow({ item, ticker, onDelete }: SortableRowProps) {
   const {
     attributes,
     listeners,
@@ -97,30 +90,30 @@ export function SortableRow({ item, onDelete }: SortableRowProps) {
       </TableCell>
 
       {/* Signal Indicator */}
-      {/* <TableCell className="py-2 w-[16.67%]">
+      <TableCell className="py-2 w-[16.67%]">
         <div className="flex items-center justify-center">
-          <div className={`w-6 h-6 rounded ${item.isUp ? 'bg-green-500/20' : 'bg-red-500/20'} flex items-center justify-center`}>
+          <div className={`w-6 h-6 rounded ${ticker?.signal === 'buy' ? 'bg-green-500/20' : ticker?.signal === 'sell' ? 'bg-red-500/20' : 'bg-gray-500/20'} flex items-center justify-center`}>
             <div
-              className={`w-2 h-3 ${item.isUp ? 'bg-green-500' : 'bg-red-500'}`}
-              style={{ clipPath: item.isUp ? 'polygon(50% 0%, 0% 100%, 100% 100%)' : 'polygon(0% 0%, 100% 0%, 50% 100%)' }}
+              className={`w-2 h-3 ${ticker?.signal === 'buy'  ? 'bg-green-500' : ticker?.signal === 'sell' ? 'bg-red-500' : 'bg-gray-500/20' }`}
+              style={{ clipPath: ticker?.signal === 'buy'  ? 'polygon(50% 0%, 0% 100%, 100% 100%)' : ticker?.signal === 'sell' ? 'polygon(0% 0%, 100% 0%, 50% 100%)' : 'none' }}
             />
           </div>
         </div>
-      </TableCell> */}
+      </TableCell>
 
       {/* Bid */}
-      {/* <TableCell className="py-2 w-[33.33%]">
-        <div className={`flex items-center justify-end text-sm font-mono ${item.isUp ? 'text-green-400' : 'text-red-400'} ${item.isUp ? 'bg-green-500/10' : 'bg-red-500/10'} px-2 rounded`}>
-          {item.price}
+      <TableCell className="py-2 w-[33.33%]">
+        <div className={`flex items-center justify-end text-sm font-mono ${item.signal ? 'text-green-400' : 'text-red-400'} ${item.signal ? 'bg-green-500/10' : 'bg-red-500/10'} px-2 rounded`}>
+          {ticker?.bid?.toFixed(2) ?? "-"}
         </div>
-      </TableCell> */}
+      </TableCell>
 
       {/* Ask */}
-      {/* <TableCell className="py-2 w-[16.67%]">
+      <TableCell className="py-2 w-[16.67%]">
         <div className="flex items-center justify-end text-sm font-mono text-gray-400">
-          {item.bid}
+          {ticker?.ask?.toFixed(2) ?? "-"}
         </div>
-      </TableCell> */}
+      </TableCell>
     </TableRow>
   )
 }

@@ -126,10 +126,7 @@ userRouter.get("/watchlist", async (c) => {
 userRouter.put("/watchlist", async (c) => {
   const payload = c.get("jwtPayload");
   if (!payload) {
-    return c.json(
-      { message: "Unauthorized" },
-      HttpStatusCode.Unauthorized
-    );
+    return c.json({ message: "Unauthorized" }, HttpStatusCode.Unauthorized);
   }
 
   const body = await c.req.json();
@@ -139,7 +136,7 @@ userRouter.put("/watchlist", async (c) => {
     return c.json(
       {
         message: "Watchlist has incorrect format",
-        errors: parsed.error.flatten(),
+        errors: parsed.error
       },
       HttpStatusCode.BadRequest
     );
