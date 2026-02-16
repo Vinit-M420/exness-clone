@@ -8,13 +8,9 @@ export type SymbolType  = {
 }
 
 
-export type SymbolTableType = {
-  symbol: string
-  name: string
-  type: string
-  // price: string
-  // change: string
-  isUp: true
-  // bid: string
-  // ask: string
+export type LatestSymbol = {
+  s: string;   // symbol
+  p: number;   // price
+  t: number;   // timestamp 
+  v: number;   // volume
 }

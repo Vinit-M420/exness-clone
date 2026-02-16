@@ -1,13 +1,13 @@
 'use client';
 import { useEffect, useState, useRef } from 'react'
-import { Search as SearchIcon, X, MoreVertical, Plus, } from 'lucide-react'
+import { Search as SearchIcon, X, MoreVertical, Plus, CreditCard, } from 'lucide-react'
 import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
 import { Table, TableBody, TableHead, TableHeader, TableRow } from '@/components/ui/table'
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
 import { Command, CommandEmpty, CommandGroup, CommandItem, CommandList } from "@/components/ui/command"
 import { AllSymbols_Metadata } from '@/data/allsymbols'
-import { SymbolType } from '@/types/symbolType'
+import { LatestSymbol, SymbolType } from '@/types/symbolType'
 import { SortableRow } from './funcs/SortableRow'
 import { DndContext, closestCenter, KeyboardSensor, PointerSensor, useSensor, useSensors, DragEndEvent, } from '@dnd-kit/core'
 import { arrayMove, SortableContext,  sortableKeyboardCoordinates, verticalListSortingStrategy,} from '@dnd-kit/sortable'
@@ -16,14 +16,19 @@ import { deriveSignal } from './funcs/deriveSignal'
 import { deriveAsk, deriveBid } from './funcs/deriveAskBid';
 import { Ticker } from '@/types/tickerType';
 
-export default function InstrumentsPanel() {
+type InstrumentsPanelProps = {
+  tickers: Record<string, Ticker>
+  setTickers: React.Dispatch<React.SetStateAction<Record<string, Ticker>>>
+}
+
+export default function InstrumentsPanel({tickers, setTickers}: InstrumentsPanelProps) {
   const [searchQuery, setSearchQuery] = useState('');
   const [open, setOpen] = useState(false);
   const [jwtToken, setJwtToken] = useState<string | null>(null)
   const [symbols, setSymbols] = useState<SymbolType[]>([]);
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const [loading, setLoading] = useState(true);
-  const [tickers, setTickers] = useState<Record<string, Ticker>>({});
+  // const [tickers, setTickers] = useState<Record<string, Ticker>>({});
   const wsRef = useRef<WebSocket | null>(null);
 
   useEffect(() => {
@@ -183,8 +188,8 @@ export default function InstrumentsPanel() {
         //   const latest = tick[tick.length - 1];
         // console.log("Latest: ", latest);
 
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        const latestPerSymbol: Record<string, any> = {};
+
+        const latestPerSymbol: Record<string, LatestSymbol> = {};
 
         for (const trade of tick.data) {
           latestPerSymbol[trade.s] = trade; 
@@ -310,6 +315,16 @@ export default function InstrumentsPanel() {
                                 title="Add to watchlist"
                               >
                                 <Plus className="h-3.5 w-3.5" />
+                              </button>
+                              <button
+                                onClick={(e) => {
+                                  e.stopPropagation()
+                                  // addSymbolToList(symbol)
+                                }}
+                                className="p-1.5 rounded hover:bg-gray-700 text-gray-400 hover:text-green-400 transition-colors"
+                                title="Add to watchlist"
+                              >
+                                <CreditCard className="h-3.5 w-3.5" />
                               </button>
                             </div>
                           </CommandItem>

@@ -6,8 +6,14 @@ import { Button } from '@/components/ui/button'
 import { InputGroup, InputGroupAddon, InputGroupInput } from '../ui/input-group'
 // import {DropdownMenu, DropdownMenuContent, DropdownMenuGroup, DropdownMenuItem, DropdownMenuTrigger } from '@radix-ui/react-dropdown-menu'
 import { TPSLInput } from '../TPSLinput'
+import { Ticker } from '@/types/tickerType'
 
-export default function OrderPlacingPanel() {
+type OrderPanelProps = {
+  tickers: Record<string, Ticker>
+  setTickers: React.Dispatch<React.SetStateAction<Record<string, Ticker>>>
+}
+
+export default function OrderPlacingPanel({tickers} : OrderPanelProps) {
   const [orderType, setOrderType] = useState<'Market' | 'Pending'>('Market')
   const [volume, setVolume] = useState('0.01')
   const [takeProfit, setTakeProfit] = useState('')
@@ -15,21 +21,26 @@ export default function OrderPlacingPanel() {
   const [sellPercentage] = useState(55);
   const [tpMode, setTpMode] = useState<'Price' | 'Points'>('Price')
   const [slMode, setSlMode] = useState<'Price' | 'Points'>('Price')
+  const selectedSymbol = 'BINANCE:BTCUSDT';
+  const ticker = tickers[selectedSymbol]
 
+  const buyPrice = ticker?.ask ?? 0
+  const sellPrice = ticker?.bid ?? 0
+  const spread = buyPrice - sellPrice
 
-  const sellPrice = '4,242.41'
-  const buyPrice = '4,242.57'
-  const spread = '0.16 USD'
+  // const sellPrice = '4,242.41'
+  // const buyPrice = '4,242.57'
+  // const spread = '0.16 USD'
 
   return (
     <div className="w-80 h-[calc(100vh-48px)] bg-[#1a1d2e] border-l border-gray-800 flex flex-col z-10">
       {/* Header */}
       <div className="flex items-center justify-between px-4 py-3 border-b border-gray-800">
         <div className="flex items-center gap-2">
-          <div className="w-6 h-6 rounded-full bg-yellow-500/20 flex items-center justify-center">
+          {/* <div className="w-6 h-6 rounded-full bg-yellow-500/20 flex items-center justify-center">
             <span className="text-xs">⚡</span>
-          </div>
-          <span className="text-sm font-medium text-gray-200">XAU/USD</span>
+          </div> */}
+          <span className="text-sm font-medium text-gray-200">BTCUSDT</span>
         </div>
         <Button
           variant="ghost"
@@ -60,13 +71,13 @@ export default function OrderPlacingPanel() {
           {/* Sell Card */}
           <div className="bg-linear-to-br from-red-950/30 to-transparent border border-red-900/30 rounded-lg p-3">
             <div className="text-xs text-red-400 mb-1">Sell</div>
-            <div className="text-2xl font-bold text-red-400">{sellPrice}</div>
+            <div className="text-2xl font-bold text-red-400">{sellPrice.toFixed(2)}</div>
           </div>
 
           {/* Buy Card */}
           <div className="bg-linear-to-br from-blue-950/30 to-transparent border border-blue-900/30 rounded-lg p-3">
             <div className="text-xs text-blue-400 mb-1">Buy</div>
-            <div className="text-2xl font-bold text-blue-400">{buyPrice}</div>
+            <div className="text-2xl font-bold text-blue-400">{buyPrice.toFixed(2)}</div>
           </div>
         </div>
 

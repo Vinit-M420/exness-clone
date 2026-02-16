@@ -39,7 +39,6 @@ export default function OrderTabs() {
         )
 
         if (!res.ok) throw new Error("Failed to fetch orders")
-
         const data = await res.json()
 
         setOrders(data.orders)
@@ -143,6 +142,12 @@ export default function OrderTabs() {
                 {orderTab !== "Pending" && (
                   <TableHead className="text-xs text-gray-500 font-normal text-right">P&L</TableHead>
                 )}
+                {orderTab !== "Closed" && (
+                  <>
+                    <TableHead className="text-xs text-gray-500 font-normal text-right">S/L</TableHead>
+                    <TableHead className="text-xs text-gray-500 font-normal text-right">T/P</TableHead>
+                  </>
+                )}
                 <TableHead className="text-xs text-gray-500 font-normal">
                   {orderTab === "Closed" ? "Closed At" : "Opened At"}
                 </TableHead>
@@ -197,6 +202,18 @@ export default function OrderTabs() {
                           </span>
                         ) : "-"}
                       </TableCell>
+                    )}
+
+                    {orderTab !== "Closed" && (
+                      <>
+                        <TableCell className="text-right font-mono text-sm text-gray-400">
+                          {order.stopLoss != null ? Number(order.stopLoss) : "-"}
+                        </TableCell>
+
+                        <TableCell className="text-right font-mono text-sm text-gray-400">
+                          {order.takeProfit != null ? Number(order.takeProfit) : "-"}
+                        </TableCell>
+                      </>
                     )}
 
                     <TableCell className="text-gray-400 text-xs">

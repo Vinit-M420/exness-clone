@@ -1,19 +1,24 @@
 'use client'
-
+import { useState } from 'react';
 import Navbar from '@/components/navbar'
 import InstrumentsPanel from '@/components/dashboard/InstrumentsPanel'
 import OrderTabs from '@/components/dashboard/OrdersTab'
 import OrderPlacingPanel from '@/components/dashboard/OrderPlacingPanel'
 // import BackgroundEffects from '@/components/BackgroundEffects'
+import { Ticker } from '@/types/tickerType';
+
 
 export default function DashboardPage() {
+  const [tickers, setTickers] = useState<Record<string, Ticker>>({});
+  
+  
   return (
     <>
       {/* <BackgroundEffects /> */}
       <Navbar />  
       <div className="relative z-10 flex mt-12 h-[calc(100vh-64px)]">
         {/* Left Sidebar - Instruments Panel */}
-        <InstrumentsPanel />
+        <InstrumentsPanel tickers={tickers} setTickers={setTickers} />
         
         {/* Middle - Chart Area */}
         <div className="flex-1 flex flex-col overflow-hidden">
@@ -32,7 +37,7 @@ export default function DashboardPage() {
         </div>
 
         {/* Right Sidebar - Order Placing Panel */}
-        <OrderPlacingPanel />
+        <OrderPlacingPanel tickers={tickers} setTickers={setTickers} />
       </div>
     </>
   )

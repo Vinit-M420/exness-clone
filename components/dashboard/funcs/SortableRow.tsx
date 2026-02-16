@@ -47,7 +47,7 @@ export function SortableRow({ item, ticker, onDelete }: SortableRowProps) {
             >
               <GripVertical className="size-4" />
             </button>
-            <div className="text-sm font-medium text-gray-200 truncate">
+            <div className="text-sm font-medium text-gray-200 truncate cursor-pointer">
               {item.symbol.replace('BINANCE:', '')}
             </div>
           </div>
@@ -58,7 +58,7 @@ export function SortableRow({ item, ticker, onDelete }: SortableRowProps) {
               <Button
                 variant="ghost"
                 size="icon"
-                className="h-6 w-6 opacity-0 group-hover:opacity-100 transition-opacity text-gray-500 hover:text-red-400 hover:bg-red-500/10 shrink-0"
+                className="h-6 w-6 opacity-0 group-hover:opacity-100 transition-opacity text-gray-500 hover:text-red-400 hover:bg-red-500/10 shrink-0 cursor-pointer"
                 onClick={(e) => e.stopPropagation()}
               >
                 <Trash2 className="h-3.5 w-3.5" />
