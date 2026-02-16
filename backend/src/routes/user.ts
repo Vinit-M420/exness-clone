@@ -157,7 +157,7 @@ userRouter.put("/watchlist", async (c) => {
         orderIndex: item.orderIndex,
         updatedAt: new Date(), 
       }))
-    );
+    ).onConflictDoNothing();
   });
 
   return c.json({ message: "Watchlist updated" });

@@ -5,11 +5,11 @@ export interface Order {
   status: 'open' | 'pending' | 'closed'
   orderType: 'market' | 'limit'
   entryPrice: number
-  exitPrice?: number
+  exitPrice?: number | null
   lotSize: number
-  stopLoss?: number
-  takeProfit?: number
-  pnl?: number
+  stopLoss?: number | null
+  takeProfit?: number | null
+  pnl: number | null
   openedAt: string
-  closedAt?: string
+  closedAt?: string | null
 }

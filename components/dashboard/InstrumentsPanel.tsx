@@ -42,7 +42,7 @@ export default function InstrumentsPanel() {
         );
 
         if (!res.ok) {
-          console.log("res:" , res);
+          // console.log("res:" , res);
           console.log("No watchlist found");
           setLoading(false);
           return;

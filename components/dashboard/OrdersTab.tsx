@@ -1,31 +1,66 @@
 'use client'
-import { useState } from "react"
+
+import { useEffect, useMemo, useState } from "react"
 import { Settings, MoreVertical, X, Briefcase } from "lucide-react"
 import { Button } from "@/components/ui/button"
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table"
-import { fakeOrders } from "@/data/mockOrdersData"
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
+import { Order } from "@/types/orderInterface"
 
 type OrderTabs = "Open" | "Pending" | "Closed"
 
-
 export default function OrderTabs() {
+  const [loading, setLoading] = useState(false)
   const [orderTab, setOrderTab] = useState<OrderTabs>("Open")
-
+  const [orders, setOrders] = useState<Order[]>([])
   const tabs: OrderTabs[] = ["Open", "Pending", "Closed"]
 
-  const filteredOrders = fakeOrders.filter(order => {
-    if (orderTab === "Open") return order.status === "open"
-    if (orderTab === "Pending") return order.status === "pending"
-    if (orderTab === "Closed") return order.status === "closed"
-    return false
+  const [jwtToken] = useState<string | null>(() => {
+    if (typeof window !== "undefined") {
+      return localStorage.getItem("token")
+    }
+    return null
   })
+
+  useEffect(() => {
+    if (!jwtToken) return
+
+    const fetchOrders = async () => {
+      try {
+        setLoading(true)
+
+        const res = await fetch(
+          `${process.env.NEXT_PUBLIC_API_BASE}/api/v1/order/all`,
+          {
+            headers: {
+              Authorization: `Bearer ${jwtToken}`,
+              "Content-Type": "application/json",
+            },
+          }
+        )
+
+        if (!res.ok) throw new Error("Failed to fetch orders")
+
+        const data = await res.json()
+
+        setOrders(data.orders)
+      } catch (err) {
+        console.error(err)
+      } finally {
+        setLoading(false)
+      }
+    }
+
+    fetchOrders()
+  }, [jwtToken])
+
+  const filteredOrders = useMemo(() => {
+    return orders.filter((order) => {
+      if (orderTab === "Open") return order.status === "open"
+      if (orderTab === "Pending") return order.status === "pending"
+      if (orderTab === "Closed") return order.status === "closed"
+      return false
+    })
+  }, [orders, orderTab])
 
   const formatDate = (dateString: string) => {
     const date = new Date(dateString)
@@ -37,34 +72,23 @@ export default function OrderTabs() {
     })
   }
 
-  const formatPrice = (price: number) => {
-    return price.toLocaleString('en-US', {
-      minimumFractionDigits: 2,
-      maximumFractionDigits: 5,
-    })
-  }
-
   return (
     <div className="bg-[#1a1d2e] border border-gray-800 rounded-lg flex flex-col h-full">
-      {/* Header with Tabs and Actions */}
+
+      {/* HEADER */}
       <div className="flex items-center justify-between border-b border-gray-800 px-4">
-        {/* Order Tabs */}
         <div className="flex">
           {tabs.map((tab) => (
             <button
               key={tab}
               onClick={() => setOrderTab(tab)}
-              className={`
-                px-4 py-3 text-sm font-medium transition-colors relative
-                ${
-                  orderTab === tab
-                    ? "text-gray-200"
-                    : "text-gray-500 hover:text-gray-300"
-                }
+              className={`px-4 py-3 text-sm font-medium transition-colors relative
+                ${orderTab === tab
+                  ? "text-gray-200"
+                  : "text-gray-500 hover:text-gray-300"}
               `}
             >
               {tab}
-              {/* Active Tab Indicator */}
               {orderTab === tab && (
                 <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-gray-200" />
               )}
@@ -72,35 +96,28 @@ export default function OrderTabs() {
           ))}
         </div>
 
-        {/* Action Buttons */}
         <div className="flex items-center gap-2">
-          <Button
-            variant="ghost"
-            size="icon"
-            className="h-8 w-8 text-gray-400 hover:text-gray-200 hover:bg-gray-800"
-          >
+          <Button variant="ghost" size="icon" className="h-8 w-8 text-gray-400 hover:text-gray-200 hover:bg-gray-800">
             <Settings className="h-4 w-4" />
           </Button>
-          <Button
-            variant="ghost"
-            size="icon"
-            className="h-8 w-8 text-gray-400 hover:text-gray-200 hover:bg-gray-800"
-          >
+          <Button variant="ghost" size="icon" className="h-8 w-8 text-gray-400 hover:text-gray-200 hover:bg-gray-800">
             <MoreVertical className="h-4 w-4" />
           </Button>
-          <Button
-            variant="ghost"
-            size="icon"
-            className="h-8 w-8 text-gray-400 hover:text-gray-200 hover:bg-gray-800"
-          >
+          <Button variant="ghost" size="icon" className="h-8 w-8 text-gray-400 hover:text-gray-200 hover:bg-gray-800">
             <X className="h-4 w-4" />
           </Button>
         </div>
       </div>
 
-      {/* Content Area */}
+      {/* CONTENT */}
       <div className="flex-1 overflow-auto">
-        {filteredOrders.length === 0 ? (
+        {loading ? (
+          <div className="flex items-center justify-center h-full p-8">
+            <p className="text-sm text-gray-400 animate-pulse">
+              Loading orders...
+            </p>
+          </div>
+        ) : filteredOrders.length === 0 ? (
           <div className="flex items-center justify-center h-full p-8">
             <div className="flex flex-col items-center gap-4 text-center">
               <div className="w-12 h-12 rounded-full bg-gray-800/50 flex items-center justify-center">
@@ -126,85 +143,70 @@ export default function OrderTabs() {
                 {orderTab !== "Pending" && (
                   <TableHead className="text-xs text-gray-500 font-normal text-right">P&L</TableHead>
                 )}
-                {orderTab !== "Closed" && (
-                  <>
-                    <TableHead className="text-xs text-gray-500 font-normal text-right">S/L</TableHead>
-                    <TableHead className="text-xs text-gray-500 font-normal text-right">T/P</TableHead>
-                  </>
-                )}
                 <TableHead className="text-xs text-gray-500 font-normal">
-                  {orderTab === "Closed" ? "Closed" : "Opened"}
+                  {orderTab === "Closed" ? "Closed At" : "Opened At"}
                 </TableHead>
               </TableRow>
             </TableHeader>
+
             <TableBody>
-              {filteredOrders.map((order) => (
-                <TableRow
-                  key={order.id}
-                  className="border-b border-gray-800/50 hover:bg-[#1f2333]"
-                >
-                  <TableCell className="font-medium text-gray-200">
-                    {order.symbol}
-                  </TableCell>
-                  <TableCell className="text-gray-400 capitalize text-sm">
-                    {order.orderType}
-                  </TableCell>
-                  <TableCell>
-                    <span
-                      className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-medium ${
-                        order.side === 'buy'
-                          ? 'bg-blue-500/10 text-blue-400'
-                          : 'bg-red-500/10 text-red-400'
-                      }`}
-                    >
-                      {order.side.toUpperCase()}
-                    </span>
-                  </TableCell>
-                  <TableCell className="text-right text-gray-300 font-mono text-sm">
-                    {order.lotSize.toFixed(2)}
-                  </TableCell>
-                  <TableCell className="text-right text-gray-300 font-mono text-sm">
-                    {formatPrice(order.entryPrice)}
-                  </TableCell>
-                  {orderTab === "Closed" && (
-                    <TableCell className="text-right text-gray-300 font-mono text-sm">
-                      {order.exitPrice ? formatPrice(order.exitPrice) : '-'}
+              {filteredOrders.map((order) => {
+                const pnlValue = order.pnl != null ? Number(order.pnl) : null
+
+                return (
+                  <TableRow key={order.id} className="border-b border-gray-800/50 hover:bg-[#1f2333]">
+                    <TableCell className="font-medium text-gray-200">
+                      {order.symbol}
                     </TableCell>
-                  )}
-                  {orderTab !== "Pending" && (
-                    <TableCell className="text-right font-mono text-sm font-medium">
-                      {order.pnl !== undefined ? (
-                        <span
-                          className={
-                            order.pnl >= 0
-                              ? 'text-green-400'
-                              : 'text-red-400'
-                          }
-                        >
-                          {order.pnl >= 0 ? '+' : ''}${order.pnl.toFixed(2)}
-                        </span>
-                      ) : (
-                        '-'
-                      )}
+
+                    <TableCell className="text-gray-400 capitalize text-sm">
+                      {order.orderType}
                     </TableCell>
-                  )}
-                  {orderTab !== "Closed" && (
-                    <>
-                      <TableCell className="text-right text-gray-400 font-mono text-sm">
-                        {order.stopLoss ? formatPrice(order.stopLoss) : '-'}
+
+                    <TableCell>
+                      <span
+                        className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-medium ${
+                          order.side === 'buy'
+                            ? 'bg-blue-500/10 text-blue-400'
+                            : 'bg-red-500/10 text-red-400'
+                        }`}
+                      >
+                        {order.side.toUpperCase()}
+                      </span>
+                    </TableCell>
+
+                    <TableCell className="text-right font-mono text-sm">
+                      {order.lotSize}
+                    </TableCell>
+
+                    <TableCell className="text-right font-mono text-sm">
+                      {order.entryPrice}
+                    </TableCell>
+
+                    {orderTab === "Closed" && (
+                      <TableCell className="text-right font-mono text-sm">
+                        {order.exitPrice ?? "-"}
                       </TableCell>
-                      <TableCell className="text-right text-gray-400 font-mono text-sm">
-                        {order.takeProfit ? formatPrice(order.takeProfit) : '-'}
+                    )}
+
+                    {orderTab !== "Pending" && (
+                      <TableCell className="text-right font-mono text-sm font-medium">
+                        {pnlValue != null ? (
+                          <span className={pnlValue >= 0 ? "text-green-400" : "text-red-400"}>
+                            {pnlValue >= 0 ? "+" : "-"}${Math.abs(pnlValue).toFixed(2)}
+                          </span>
+                        ) : "-"}
                       </TableCell>
-                    </>
-                  )}
-                  <TableCell className="text-gray-400 text-xs">
-                    {orderTab === "Closed" && order.closedAt
-                      ? formatDate(order.closedAt)
-                      : formatDate(order.openedAt)}
-                  </TableCell>
-                </TableRow>
-              ))}
+                    )}
+
+                    <TableCell className="text-gray-400 text-xs">
+                      {orderTab === "Closed" && order.closedAt
+                        ? formatDate(order.closedAt)
+                        : formatDate(order.openedAt)}
+                    </TableCell>
+                  </TableRow>
+                )
+              })}
             </TableBody>
           </Table>
         )}
