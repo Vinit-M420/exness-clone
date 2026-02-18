@@ -12,9 +12,10 @@ interface SortableRowProps {
   item: SymbolType
   ticker?: Ticker
   onDelete: (symbol: string) => void
+  setSelectedSymbol: React.Dispatch<React.SetStateAction<string | null>> 
 }
 
-export function SortableRow({ item, ticker, onDelete }: SortableRowProps) {
+export function SortableRow({ item, ticker, onDelete, setSelectedSymbol }: SortableRowProps) {
   const {
     attributes,
     listeners,
@@ -47,7 +48,8 @@ export function SortableRow({ item, ticker, onDelete }: SortableRowProps) {
             >
               <GripVertical className="size-4" />
             </button>
-            <div className="text-sm font-medium text-gray-200 truncate cursor-pointer">
+            <div className="text-sm font-medium text-gray-200 truncate cursor-pointer"
+                onClick={() => setSelectedSymbol(item.symbol)}>
               {item.symbol.replace('BINANCE:', '')}
             </div>
           </div>

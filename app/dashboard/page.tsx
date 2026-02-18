@@ -1,24 +1,82 @@
 'use client'
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import Navbar from '@/components/navbar'
 import InstrumentsPanel from '@/components/dashboard/InstrumentsPanel'
 import OrderTabs from '@/components/dashboard/OrdersTab'
 import OrderPlacingPanel from '@/components/dashboard/OrderPlacingPanel'
 // import BackgroundEffects from '@/components/BackgroundEffects'
 import { Ticker } from '@/types/tickerType';
-
+import { Order } from "@/types/orderInterface"
 
 export default function DashboardPage() {
   const [tickers, setTickers] = useState<Record<string, Ticker>>({});
-  
-  
+  const [orders, setOrders] = useState<Order[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [selectedSymbol, setSelectedSymbol] = useState<string | null>(null);
+  const [jwtToken] = useState<string | null>(() => {
+    if (typeof window !== "undefined") {
+      return localStorage.getItem("token");
+    }
+    return null;
+  });
+
+  useEffect(() => {
+    if (!jwtToken) return
+
+    const fetchOrders = async () => {
+      try {
+        setLoading(true)
+
+        const res = await fetch(
+          `${process.env.NEXT_PUBLIC_API_BASE}/api/v1/order/all`,
+          {
+            headers: {
+              Authorization: `Bearer ${jwtToken}`,
+              "Content-Type": "application/json",
+            },
+          }
+        )
+        
+        if (!res.ok) {
+          // console.error("Failed to fetch orders")
+          setOrders([])
+          return
+        }
+
+        const data = await res.json()
+        console.log("res: ", data)
+        
+        // Handle both cases: empty array or orders array
+        if (Array.isArray(data.orders)) {
+          setOrders(data.orders)
+        } else if (Array.isArray(data)) {
+          setOrders(data)
+        } else {
+          setOrders([])
+        }
+      } catch (err) {
+        console.error(err)
+        setOrders([])
+      } finally {
+        setLoading(false)
+      }
+    }
+
+    fetchOrders()
+  }, [jwtToken])
+
+
   return (
     <>
       {/* <BackgroundEffects /> */}
       <Navbar />  
       <div className="relative z-10 flex mt-12 h-[calc(100vh-64px)]">
         {/* Left Sidebar - Instruments Panel */}
-        <InstrumentsPanel tickers={tickers} setTickers={setTickers} />
+        <InstrumentsPanel 
+          tickers={tickers} 
+          setTickers={setTickers} 
+          setSelectedSymbol={setSelectedSymbol} 
+        />
         
         {/* Middle - Chart Area */}
         <div className="flex-1 flex flex-col overflow-hidden">
@@ -32,12 +90,17 @@ export default function DashboardPage() {
           
           {/* Bottom - Order Tabs */}
           <div className="h-[300px] border-l border-t border-gray-800 p-4">
-            <OrderTabs />
+            <OrderTabs orders={orders} setOrders={setOrders} loading={loading} />
           </div>
         </div>
 
         {/* Right Sidebar - Order Placing Panel */}
-        <OrderPlacingPanel tickers={tickers} setTickers={setTickers} />
+        <OrderPlacingPanel 
+          tickers={tickers} 
+          setTickers={setTickers} 
+          setOrders={setOrders} 
+          selectedSymbol={selectedSymbol} 
+        />
       </div>
     </>
   )

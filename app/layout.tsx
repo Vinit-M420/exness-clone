@@ -5,7 +5,9 @@ dotenv.config();
 
 const inter = Inter({ 
   subsets: ['latin'],
-  variable: '--font-inter'
+  variable: '--font-inter',
+  display: 'swap',  
+  preload: true, 
 })
 
 export default function RootLayout({

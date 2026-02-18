@@ -19,9 +19,10 @@ import { Ticker } from '@/types/tickerType';
 type InstrumentsPanelProps = {
   tickers: Record<string, Ticker>
   setTickers: React.Dispatch<React.SetStateAction<Record<string, Ticker>>>
+  setSelectedSymbol: React.Dispatch<React.SetStateAction<string | null>> 
 }
 
-export default function InstrumentsPanel({tickers, setTickers}: InstrumentsPanelProps) {
+export default function InstrumentsPanel({tickers, setSelectedSymbol, setTickers}: InstrumentsPanelProps) {
   const [searchQuery, setSearchQuery] = useState('');
   const [open, setOpen] = useState(false);
   const [jwtToken, setJwtToken] = useState<string | null>(null)
@@ -48,7 +49,7 @@ export default function InstrumentsPanel({tickers, setTickers}: InstrumentsPanel
 
         if (!res.ok) {
           // console.log("res:" , res);
-          console.log("No watchlist found");
+          // console.log("No watchlist found");
           setLoading(false);
           return;
         }
@@ -76,8 +77,7 @@ export default function InstrumentsPanel({tickers, setTickers}: InstrumentsPanel
       }
     };
 
-    if (jwtToken) fetchWatchlist();
-    
+    if (jwtToken) fetchWatchlist();   
   }, [jwtToken]);
 
 
@@ -188,12 +188,10 @@ export default function InstrumentsPanel({tickers, setTickers}: InstrumentsPanel
         //   const latest = tick[tick.length - 1];
         // console.log("Latest: ", latest);
 
-
         const latestPerSymbol: Record<string, LatestSymbol> = {};
 
         for (const trade of tick.data) {
           latestPerSymbol[trade.s] = trade; 
-          // Last one wins (latest in array)
         }
         
         setTickers((prev) => {
@@ -230,7 +228,7 @@ export default function InstrumentsPanel({tickers, setTickers}: InstrumentsPanel
     return () => {
       ws.close();
     };
-  }, [symbols]);
+  }, [setTickers, symbols]);
 
   return (
     <div className="w-80 h-[calc(100vh-48px)] bg-[#1a1d2e] border-t-3 border-r-2 border-gray-800 flex flex-col">
@@ -319,10 +317,10 @@ export default function InstrumentsPanel({tickers, setTickers}: InstrumentsPanel
                               <button
                                 onClick={(e) => {
                                   e.stopPropagation()
-                                  // addSymbolToList(symbol)
+                                  setSelectedSymbol(symbol.symbol)
                                 }}
                                 className="p-1.5 rounded hover:bg-gray-700 text-gray-400 hover:text-green-400 transition-colors"
-                                title="Add to watchlist"
+                                title="Place an order"
                               >
                                 <CreditCard className="h-3.5 w-3.5" />
                               </button>
@@ -378,6 +376,7 @@ export default function InstrumentsPanel({tickers, setTickers}: InstrumentsPanel
                       item={item}
                       ticker={tickers[item.symbol]}
                       onDelete={handleDelete}
+                      setSelectedSymbol={setSelectedSymbol}
                     />
                   ))}
                 </SortableContext>

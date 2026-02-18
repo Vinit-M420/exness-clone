@@ -4,6 +4,7 @@ export interface Order {
   side: 'buy' | 'sell'
   status: 'open' | 'pending' | 'closed'
   orderType: 'market' | 'limit'
+  triggerPrice: number
   entryPrice: number
   exitPrice?: number | null
   lotSize: number

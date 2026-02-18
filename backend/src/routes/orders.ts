@@ -52,7 +52,7 @@ orderRouter.get("/all", async (c) => {
     );
 
   if (allOrders.length === 0) 
-    return c.json({ message: "No orders found" }, HttpStatusCode.NotFound); 
+    return c.json({ message: "No orders found" }, HttpStatusCode.Ok); 
 
   return c.json({orders: allOrders, balance}, HttpStatusCode.Ok);
 });

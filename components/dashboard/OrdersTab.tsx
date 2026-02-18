@@ -1,56 +1,24 @@
 'use client'
 
-import { useEffect, useMemo, useState } from "react"
+import { useMemo, useState } from "react"
 import { Settings, MoreVertical, X, Briefcase } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Order } from "@/types/orderInterface"
 
-type OrderTabs = "Open" | "Pending" | "Closed"
+type OrderTabs = "Open" | "Pending" | "Closed";
 
-export default function OrderTabs() {
-  const [loading, setLoading] = useState(false)
+type OrdersTabProps = {
+  orders: Order[]
+  setOrders: React.Dispatch<React.SetStateAction<Order[]>>
+  loading?: boolean
+}
+
+export default function OrderTabs({orders, loading} : OrdersTabProps) {
+  
   const [orderTab, setOrderTab] = useState<OrderTabs>("Open")
-  const [orders, setOrders] = useState<Order[]>([])
   const tabs: OrderTabs[] = ["Open", "Pending", "Closed"]
 
-  const [jwtToken] = useState<string | null>(() => {
-    if (typeof window !== "undefined") {
-      return localStorage.getItem("token")
-    }
-    return null
-  })
-
-  useEffect(() => {
-    if (!jwtToken) return
-
-    const fetchOrders = async () => {
-      try {
-        setLoading(true)
-
-        const res = await fetch(
-          `${process.env.NEXT_PUBLIC_API_BASE}/api/v1/order/all`,
-          {
-            headers: {
-              Authorization: `Bearer ${jwtToken}`,
-              "Content-Type": "application/json",
-            },
-          }
-        )
-
-        if (!res.ok) throw new Error("Failed to fetch orders")
-        const data = await res.json()
-
-        setOrders(data.orders)
-      } catch (err) {
-        console.error(err)
-      } finally {
-        setLoading(false)
-      }
-    }
-
-    fetchOrders()
-  }, [jwtToken])
 
   const filteredOrders = useMemo(() => {
     return orders.filter((order) => {
@@ -116,7 +84,7 @@ export default function OrderTabs() {
               Loading orders...
             </p>
           </div>
-        ) : filteredOrders.length === 0 ? (
+        ) : !filteredOrders || filteredOrders.length === 0 ? (
           <div className="flex items-center justify-center h-full p-8">
             <div className="flex flex-col items-center gap-4 text-center">
               <div className="w-12 h-12 rounded-full bg-gray-800/50 flex items-center justify-center">
@@ -135,7 +103,12 @@ export default function OrderTabs() {
                 <TableHead className="text-xs text-gray-500 font-normal">Type</TableHead>
                 <TableHead className="text-xs text-gray-500 font-normal">Side</TableHead>
                 <TableHead className="text-xs text-gray-500 font-normal text-right">Lots</TableHead>
-                <TableHead className="text-xs text-gray-500 font-normal text-right">Entry</TableHead>
+                {orderTab === "Pending" && (
+                  <TableHead className="text-xs text-gray-500 font-normal text-right">Trigger</TableHead>
+                )}
+                {orderTab !== "Pending" && (
+                  <TableHead className="text-xs text-gray-500 font-normal text-right">Entry</TableHead>
+                )}
                 {orderTab === "Closed" && (
                   <TableHead className="text-xs text-gray-500 font-normal text-right">Exit</TableHead>
                 )}
@@ -183,13 +156,21 @@ export default function OrderTabs() {
                     <TableCell className="text-right font-mono text-sm">
                       {order.lotSize}
                     </TableCell>
-
-                    <TableCell className="text-right font-mono text-sm">
-                      {order.entryPrice}
-                    </TableCell>
+                    
+                    {orderTab === "Pending" && (    
+                      <TableCell className="text-right font-mono text-sm text-gray-300">
+                        {order.triggerPrice ?? "-"}
+                      </TableCell>
+                    )}
+                    
+                    {orderTab !== "Pending" && (  
+                      <TableCell className="text-right font-mono text-sm text-gray-300">
+                        {order.entryPrice ?? "-"}
+                      </TableCell>
+                    )}
 
                     {orderTab === "Closed" && (
-                      <TableCell className="text-right font-mono text-sm">
+                      <TableCell className="text-right font-mono text-sm text-gray-300">
                         {order.exitPrice ?? "-"}
                       </TableCell>
                     )}
@@ -198,7 +179,7 @@ export default function OrderTabs() {
                       <TableCell className="text-right font-mono text-sm font-medium">
                         {pnlValue != null ? (
                           <span className={pnlValue >= 0 ? "text-green-400" : "text-red-400"}>
-                            {pnlValue >= 0 ? "+" : "-"}${Math.abs(pnlValue).toFixed(2)}
+                          {pnlValue >= 0 ? "+" : "-"}${Math.abs(pnlValue).toFixed(2)}
                           </span>
                         ) : "-"}
                       </TableCell>
@@ -207,11 +188,11 @@ export default function OrderTabs() {
                     {orderTab !== "Closed" && (
                       <>
                         <TableCell className="text-right font-mono text-sm text-gray-400">
-                          {order.stopLoss != null ? Number(order.stopLoss) : "-"}
+                          {order.stopLoss != null ? Number(order.stopLoss).toFixed(2) : "-"}
                         </TableCell>
 
                         <TableCell className="text-right font-mono text-sm text-gray-400">
-                          {order.takeProfit != null ? Number(order.takeProfit) : "-"}
+                          {order.takeProfit != null ? Number(order.takeProfit).toFixed(2) : "-"}
                         </TableCell>
                       </>
                     )}
