@@ -13,10 +13,10 @@ export default function DashboardPage() {
   const [orders, setOrders] = useState<Order[]>([]);
   const [loading, setLoading] = useState(false);
   const [selectedSymbol, setSelectedSymbol] = useState<string | null>(null);
+  const [tableRerender, setTableRerender] = useState(false);
   const [jwtToken] = useState<string | null>(() => {
-    if (typeof window !== "undefined") {
-      return localStorage.getItem("token");
-    }
+    if (typeof window !== "undefined") { 
+      return localStorage.getItem("token"); }
     return null;
   });
 
@@ -54,6 +54,7 @@ export default function DashboardPage() {
         } else {
           setOrders([])
         }
+        if (setTableRerender) setTableRerender(false);
       } catch (err) {
         console.error(err)
         setOrders([])
@@ -62,8 +63,8 @@ export default function DashboardPage() {
       }
     }
 
-    fetchOrders()
-  }, [jwtToken])
+    fetchOrders()  
+  }, [jwtToken, tableRerender])
 
 
   return (
@@ -100,6 +101,7 @@ export default function DashboardPage() {
           setTickers={setTickers} 
           setOrders={setOrders} 
           selectedSymbol={selectedSymbol} 
+          setTableRerender={setTableRerender}
         />
       </div>
     </>

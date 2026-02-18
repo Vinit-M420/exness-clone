@@ -8,15 +8,17 @@ import { InputGroup, InputGroupAddon, InputGroupInput } from '../ui/input-group'
 import { Ticker } from '@/types/tickerType'
 import { Order } from '@/types/orderInterface'
 import { TPSLInput } from '../TPSLinput'
+import { orders } from '@/backend/src/db/schema'
 
 type OrderPanelProps = {
   tickers: Record<string, Ticker>,
   setTickers: React.Dispatch<React.SetStateAction<Record<string, Ticker>>>,
   selectedSymbol: string | null,
-  setOrders: React.Dispatch<React.SetStateAction<Order[]>>
+  setOrders: React.Dispatch<React.SetStateAction<Order[]>>,
+  setTableRerender: React.Dispatch<React.SetStateAction<boolean>>,
 }
 
-export default function OrderPlacingPanel({tickers, selectedSymbol, setOrders} : OrderPanelProps) {
+export default function OrderPlacingPanel({tickers, selectedSymbol, setOrders, setTableRerender} : OrderPanelProps) {
   const [orderType, setOrderType] = useState<'Market' | 'Pending'>('Market')
   const [volume, setVolume] = useState('0.01')
   const [takeProfit, setTakeProfit] = useState('')
@@ -73,9 +75,11 @@ export default function OrderPlacingPanel({tickers, selectedSymbol, setOrders} :
 
       const data = await res.json();
       console.log("Order placed successfully:", data);
-      if (data.order) {
-        setOrders(prevOrders => [...prevOrders, data.order]);
-      }
+      // if (data.order) {
+      //   setOrders(prevOrders => [...prevOrders, data.order]);
+      // }
+      setTableRerender(true);
+      console.log("Orders: ", orders);
       
     } catch (e) {
       console.error("Error:", e);
@@ -108,10 +112,11 @@ export default function OrderPlacingPanel({tickers, selectedSymbol, setOrders} :
 
       const data = await res.json();
       console.log("Limit Order placed successfully:", data);
-      if (data.order) {
-        setOrders(prevOrders => [...prevOrders, data.order]);
-      }
-      
+      // if (data.order) {
+      //   setOrders(prevOrders => [...prevOrders, data.order]);
+      // }
+      console.log("Orders: ", orders);
+      setTableRerender(true);
     } catch (e) {
       console.error("Error:", e);
     }
@@ -233,52 +238,6 @@ export default function OrderPlacingPanel({tickers, selectedSymbol, setOrders} :
             </Button>
           </div>
         </div>
-        
-        {/* Take Prof */}
-        {/* <div className="space-y-2">
-          <div className="flex items-center justify-between">
-            <label className="text-sm text-gray-400">Take Profit</label>
-          </div>
-          <div className="flex items-center gap-2">
-            <div className="flex-1 flex rounded-lg border border-gray-700 bg-transparent overflow-hidden">
-              <InputGroup>
-                <InputGroupInput
-                  type="text"
-                  value={takeProfit}
-                  placeholder='Not set'
-                  onChange={(e) => setTakeProfit(e.target.value)}
-                  className="border-0 text-gray-300 h-11 focus-visible:ring-0 focus-visible:ring-offset-0"
-                />
-                <InputGroupAddon align="inline-end" className='text-sm text-gray-400'>Price</InputGroupAddon>
-              </InputGroup>
-            </div>
-            
-            <Button
-              variant="ghost"
-              size="icon"
-              className="h-11 w-11 text-gray-400 hover:text-gray-300 hover:bg-gray-800"
-              onClick={() => {
-                const numValue = parseInt(takeProfit, 10) || 0;
-                const newValue = Math.max(0, numValue - 1).toString();
-                setTakeProfit(newValue)
-              }}
-            >
-              <Minus className="h-4 w-4" />
-            </Button>
-            <Button
-              variant="ghost"
-              size="icon"
-              className="h-11 w-11 text-gray-400 hover:text-gray-300 hover:bg-gray-800"
-              onClick={() => {
-                const numValue = parseInt(takeProfit, 10) || 0;
-                const newValue = Math.max(0, numValue + 1).toString();
-                setTakeProfit(newValue)
-              }}
-            >
-              <Plus className="h-4 w-4" />
-            </Button>
-          </div>
-        </div> */}
 
         <TPSLInput label='Take Profit' value={takeProfit}  onChange={setTakeProfit} />
         <TPSLInput label='Stop Loss' value={stopLoss}  onChange={setStopLoss} />
@@ -289,12 +248,12 @@ export default function OrderPlacingPanel({tickers, selectedSymbol, setOrders} :
 
       </div>
 
-      {/* Footer - Action Buttons */}
+      {/* Action Buttons - Buy and Sell */}
       <div className="border-t border-gray-800 p-4 grid grid-cols-2 gap-3">
         <Button 
           onClick={() => {
             if (orderType === 'Market') placeMarketOrder('SELL');
-            placeLimitOrder("SELL");
+            else placeLimitOrder("SELL");
           }}
           className="h-12 bg-linear-to-br from-red-600 to-red-700 hover:from-red-700 hover:to-red-800 text-white font-semibold"
         >
@@ -304,7 +263,7 @@ export default function OrderPlacingPanel({tickers, selectedSymbol, setOrders} :
         <Button 
           onClick={() => {
             if (orderType === 'Market') placeMarketOrder('BUY');
-            placeLimitOrder("BUY");
+            else placeLimitOrder("BUY");
           }}
           className="h-12 bg-linear-to-br from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 text-white font-semibold"
         >
