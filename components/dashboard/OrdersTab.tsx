@@ -226,9 +226,21 @@ export default function OrderTabs({orders, setOrders, loading} : OrdersTabProps)
                       <TableHead className="text-xs text-gray-500 font-normal text-right">T/P</TableHead>
                     </>
                   )}
+                  {orderTab !== "Pending" && (
                   <TableHead className="text-xs text-gray-500 font-normal">
-                    {orderTab === "Closed" ? "Closed At" : "Opened At"}
+                    {`Opened At`}
                   </TableHead>
+                  )}
+                  {orderTab === "Closed" && (
+                   <TableHead className="text-xs text-gray-500 font-normal">
+                    {`Closed At`}
+                  </TableHead>
+                  )}
+                  {orderTab === "Pending" && (
+                   <TableHead className="text-xs text-gray-500 font-normal">
+                    {`Created At`}
+                  </TableHead>
+                  )}
                 </TableRow>
               </TableHeader>
 
@@ -305,12 +317,21 @@ export default function OrderTabs({orders, setOrders, loading} : OrdersTabProps)
                           </TableCell>
                         </>
                       )}
-
+                      {orderTab !== "Pending" && (
                       <TableCell className="text-gray-400 text-xs">
-                        {orderTab === "Closed" && order.closedAt
-                          ? formatDate(order.closedAt)
-                          : formatDate(order.openedAt)}
+                        {formatDate(order.openedAt)}
                       </TableCell>
+                      )}
+                      {orderTab === "Pending" && (
+                      <TableCell className="text-gray-400 text-xs">
+                        {formatDate(order.createdAt)}
+                      </TableCell>
+                      )}
+                      {orderTab === "Closed" && (
+                      <TableCell className="text-gray-400 text-xs">
+                        {formatDate(order.closedAt)}
+                      </TableCell>
+                      )}
                     </TableRow>
                   )
                 })}
