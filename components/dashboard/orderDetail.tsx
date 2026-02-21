@@ -1,36 +1,27 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { X, Trash2 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Order } from '@/types/orderInterface'
+import { Dialog, DialogContent, DialogDescription, 
+  DialogFooter, DialogHeader, DialogTitle, } from '@/components/ui/dialog'
 import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from '@/components/ui/dialog'
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-} from '@/components/ui/alert-dialog'
+  AlertDialog, AlertDialogAction, AlertDialogCancel,
+  AlertDialogContent, AlertDialogDescription, AlertDialogFooter,
+  AlertDialogHeader, AlertDialogTitle, } from '@/components/ui/alert-dialog'
 import { TPSLInput } from '../TPSLinput'
+
+type OrderTabs = "Open" | "Pending" | "Closed"
 
 interface OrderDetailsModalProps {
   order: Order | null
   open: boolean
   onClose: () => void
-  onUpdate: (orderId: string, updates: { stopLoss?: string; takeProfit?: string }) => Promise<void>
+  onUpdate: (orderId: string, updates: { stopLoss?: string; takeProfit?: string; triggerPrice?: string }) => Promise<void>
   onCloseOrder: (orderId: string) => Promise<void>
   onDelete: (orderId: string) => Promise<void>
+  orderTab: OrderTabs
 }
 
 export function OrderDetailsModal({
@@ -40,20 +31,23 @@ export function OrderDetailsModal({
   onUpdate,
   onCloseOrder,
   onDelete,
+  orderTab
 }: OrderDetailsModalProps) {
   const [stopLoss, setStopLoss] = useState('')
   const [takeProfit, setTakeProfit] = useState('')
+  const [triggerPrice, setTriggerPrice] = useState('')
   const [loading, setLoading] = useState(false)
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
   const [showCloseConfirm, setShowCloseConfirm] = useState(false)
 
   // Initialize values when order changes
-  useState(() => {
+  useEffect(() => {
     if (order) {
+      setTriggerPrice(order.triggerPrice?.toString() || '')
       setStopLoss(order.stopLoss?.toString() || '')
       setTakeProfit(order.takeProfit?.toString() || '')
     }
-  })
+  }, [order])
 
   if (!order) return null
 
@@ -63,6 +57,7 @@ export function OrderDetailsModal({
       await onUpdate(order.id, {
         ...(stopLoss && { stopLoss }),
         ...(takeProfit && { takeProfit }),
+        // ...(triggerPrice && order.status === 'pending' && { triggerPrice }),
       })
       onClose()
     } catch (error) {
@@ -116,70 +111,79 @@ export function OrderDetailsModal({
       <Dialog open={open} onOpenChange={onClose}>
         <DialogContent className="bg-[#1a1d2e] border-gray-700 text-gray-200 max-w-md">
           <DialogHeader>
-            <DialogTitle className="text-xl font-semibold flex items-center justify-between">
-              <span>Order Details</span>
-              <span
-                className={`text-sm px-2 py-1 rounded ${
-                  order.status === 'open'
-                    ? 'bg-green-500/10 text-green-400'
-                    : order.status === 'pending'
-                    ? 'bg-yellow-500/10 text-yellow-400'
-                    : 'bg-gray-500/10 text-gray-400'
-                }`}
-              >
-                {order.status.toUpperCase()}
-              </span>
-            </DialogTitle>
-            <DialogDescription className="text-gray-400">
-              {order.symbol} • {order.orderType.toUpperCase()}
-            </DialogDescription>
+            <div className="flex items-center justify-between">
+              <div>
+                <DialogTitle className="text-xl font-semibold">
+                  Order Details
+                </DialogTitle>
+                <DialogDescription className="text-gray-400 mt-1">
+                  {order.symbol} • {order.orderType.toUpperCase()}
+                </DialogDescription>
+              </div>
+            </div>
           </DialogHeader>
 
           <div className="space-y-4 py-4">
             {/* Order Info Grid */}
             <div className="grid grid-cols-2 gap-4">
+              {/* Row 1: Status and Side */}
               <div>
-                <label className="text-xs text-gray-500">Side</label>
-                <div
-                  className={`mt-1 inline-flex items-center px-2 py-1 rounded text-sm font-medium ${
+                <label className="text-xs text-gray-500 block mb-1">Status</label>
+                <span
+                  className={`inline-flex items-center px-2 py-1 rounded text-xs font-medium ${
+                    order.status === 'open'
+                      ? 'bg-green-500/10 text-green-400'
+                      : order.status === 'pending'
+                      ? 'bg-yellow-500/10 text-yellow-400'
+                      : 'bg-gray-500/10 text-gray-400'
+                  }`}
+                >
+                  {order.status.toUpperCase()}
+                </span>
+              </div>
+
+              <div>
+                <label className="text-xs text-gray-500 block mb-1">Side</label>
+                <span
+                  className={`inline-flex items-center px-2 py-1 rounded text-xs font-medium ${
                     order.side === 'buy'
                       ? 'bg-blue-500/10 text-blue-400'
                       : 'bg-red-500/10 text-red-400'
                   }`}
                 >
                   {order.side.toUpperCase()}
-                </div>
+                </span>
               </div>
 
+              {/* Row 2: Lot Size and Entry/Trigger Price */}
               <div>
-                <label className="text-xs text-gray-500">Lot Size</label>
-                <div className="mt-1 text-sm font-mono text-gray-300">
+                <label className="text-xs text-gray-500 block mb-1">Lot Size</label>
+                <div className="text-sm font-mono text-gray-300">
                   {order.lotSize}
                 </div>
               </div>
 
-              {order.status === 'pending' && order.triggerPrice && (
+              {order.status === 'pending' && order.triggerPrice ? (
                 <div>
-                  <label className="text-xs text-gray-500">Trigger Price</label>
-                  <div className="mt-1 text-sm font-mono text-gray-300">
+                  <label className="text-xs text-gray-500 block mb-1">Trigger Price</label>
+                  <div className="text-sm font-mono text-gray-300">
                     {Number(order.triggerPrice).toFixed(2)}
                   </div>
                 </div>
-              )}
-
-              {order.status !== 'pending' && order.entryPrice && (
+              ) : order.entryPrice ? (
                 <div>
-                  <label className="text-xs text-gray-500">Entry Price</label>
-                  <div className="mt-1 text-sm font-mono text-gray-300">
+                  <label className="text-xs text-gray-500 block mb-1">Entry Price</label>
+                  <div className="text-sm font-mono text-gray-300">
                     {Number(order.entryPrice).toFixed(2)}
                   </div>
                 </div>
-              )}
+              ) : null}
 
+              {/* Exit Price and P&L (if closed) */}
               {order.status === 'closed' && order.exitPrice && (
                 <div>
-                  <label className="text-xs text-gray-500">Exit Price</label>
-                  <div className="mt-1 text-sm font-mono text-gray-300">
+                  <label className="text-xs text-gray-500 block mb-1">Exit Price</label>
+                  <div className="text-sm font-mono text-gray-300">
                     {Number(order.exitPrice).toFixed(2)}
                   </div>
                 </div>
@@ -187,9 +191,9 @@ export function OrderDetailsModal({
 
               {order.status !== 'pending' && pnlValue !== null && (
                 <div>
-                  <label className="text-xs text-gray-500">P&L</label>
+                  <label className="text-xs text-gray-500 block mb-1">P&L</label>
                   <div
-                    className={`mt-1 text-sm font-mono font-semibold ${
+                    className={`text-sm font-mono font-semibold ${
                       pnlValue >= 0 ? 'text-green-400' : 'text-red-400'
                     }`}
                   >
@@ -198,26 +202,29 @@ export function OrderDetailsModal({
                 </div>
               )}
 
-              {/* {order.marginUsed && (
-                <div>
-                  <label className="text-xs text-gray-500">Margin Used</label>
-                  <div className="mt-1 text-sm font-mono text-gray-300">
-                    ${Number(order.marginUsed).toFixed(2)}
-                  </div>
-                </div>
-              )} */}
-
+              {/* Dates */}
+              {order.status === 'open' &&
               <div className="col-span-2">
-                <label className="text-xs text-gray-500">Opened At</label>
-                <div className="mt-1 text-sm text-gray-300">
+                <label className="text-xs text-gray-500 block mb-1">Opened At</label>
+                <div className="text-sm text-gray-300">
                   {formatDate(order.openedAt)}
                 </div>
               </div>
+              }
+
+              {order.status === 'pending' &&
+              <div className="col-span-2">
+                <label className="text-xs text-gray-500 block mb-1">Created At</label>
+                <div className="text-sm text-gray-300">
+                  {formatDate(order.createdAt)}
+                </div>
+              </div>
+              }
 
               {order.status === 'closed' && order.closedAt && (
                 <div className="col-span-2">
-                  <label className="text-xs text-gray-500">Closed At</label>
-                  <div className="mt-1 text-sm text-gray-300">
+                  <label className="text-xs text-gray-500 block mb-1">Closed At</label>
+                  <div className="text-sm text-gray-300">
                     {formatDate(order.closedAt)}
                   </div>
                 </div>
@@ -227,6 +234,14 @@ export function OrderDetailsModal({
             {/* Editable Fields for Open/Pending Orders */}
             {(order.status === 'open' || order.status === 'pending') && (
               <div className="space-y-4 pt-4 border-t border-gray-700">
+                {orderTab === 'Pending' && (
+                  <TPSLInput
+                    label="Trigger Price"
+                    value={triggerPrice}
+                    onChange={setTriggerPrice}
+                  /> 
+                )}
+                 
                 <TPSLInput
                   label="Stop Loss"
                   value={stopLoss}
@@ -242,17 +257,17 @@ export function OrderDetailsModal({
             )}
           </div>
 
-          <DialogFooter className="gap-2">
+          <DialogFooter className="flex gap-2">
             {/* Delete Button for Pending Orders */}
             {order.status === 'pending' && (
               <Button
                 variant="outline"
                 onClick={() => setShowDeleteConfirm(true)}
                 disabled={loading}
-                className="border-red-700 text-red-400 hover:bg-red-500/10 hover:text-red-300"
+                className="flex-1 border-red-700 text-red-400 hover:bg-red-500/10 hover:text-red-300"
               >
                 <Trash2 className="h-4 w-4 mr-2" />
-                Delete Order
+                Delete
               </Button>
             )}
 
@@ -262,7 +277,7 @@ export function OrderDetailsModal({
                 variant="outline"
                 onClick={() => setShowCloseConfirm(true)}
                 disabled={loading}
-                className="border-orange-700 text-orange-400 hover:bg-orange-500/10 hover:text-orange-300"
+                className="flex-1 border-orange-700 text-orange-400 hover:bg-orange-500/10 hover:text-orange-300"
               >
                 <X className="h-4 w-4 mr-2" />
                 Close Position
@@ -274,20 +289,11 @@ export function OrderDetailsModal({
               <Button
                 onClick={handleUpdate}
                 disabled={loading}
-                className="bg-linear-to-br from-(--exness-gold) to-amber-200 text-black hover:from-yellow-500 hover:to-amber-300"
+                className="flex-1 bg-linear-to-br from-(--exness-gold) to-amber-200 text-black hover:from-yellow-500 hover:to-amber-300"
               >
-                {loading ? 'Updating...' : 'Update Order'}
+                {loading ? 'Updating...' : 'Update'}
               </Button>
             )}
-
-            <Button
-              variant="outline"
-              onClick={onClose}
-              disabled={loading}
-              className="border-gray-700 text-gray-300 hover:bg-gray-800"
-            >
-              Close
-            </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
@@ -314,7 +320,7 @@ export function OrderDetailsModal({
               disabled={loading}
               className="bg-red-600 hover:bg-red-700 text-white"
             >
-              {loading ? 'Deleting...' : 'Delete Order'}
+              {loading ? 'Deleting...' : 'Delete'}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

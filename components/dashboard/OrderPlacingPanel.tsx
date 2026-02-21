@@ -1,5 +1,4 @@
 'use client'
-
 import { useState } from 'react'
 import { X, Plus, Minus, ArrowBigUp, ArrowBigDown } from 'lucide-react'
 import { Button } from '@/components/ui/button'
@@ -18,7 +17,7 @@ type OrderPanelProps = {
   setTableRerender: React.Dispatch<React.SetStateAction<boolean>>,
 }
 
-export default function OrderPlacingPanel({tickers, selectedSymbol, setOrders, setTableRerender} : OrderPanelProps) {
+export default function OrderPlacingPanel({tickers, selectedSymbol, setTableRerender} : OrderPanelProps) {
   const [orderType, setOrderType] = useState<'Market' | 'Pending'>('Market')
   const [volume, setVolume] = useState('0.01')
   const [takeProfit, setTakeProfit] = useState('')

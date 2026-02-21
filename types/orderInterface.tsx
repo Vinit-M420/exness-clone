@@ -12,5 +12,6 @@ export interface Order {
   takeProfit?: number | null
   pnl: number | null
   openedAt: string
-  closedAt?: string | null
+  closedAt: string
+  createdAt: string
 }

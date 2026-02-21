@@ -7,7 +7,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Order } from "@/types/orderInterface"
 import { OrderDetailsModal } from "./orderDetail"
 
-type OrderTabs = "Open" | "Pending" | "Closed";
+export type OrderTabs = "Open" | "Pending" | "Closed";
 
 type OrdersTabProps = {
   orders: Order[],
@@ -49,7 +49,7 @@ export default function OrderTabs({orders, setOrders, loading} : OrdersTabProps)
 
   const handleUpdateOrder = async (
     orderId: string,
-    updates: { stopLoss?: string; takeProfit?: string }
+    updates: { stopLoss?: string; takeProfit?: string, triggerPrice?: string }
   ) => {
     try {
       const res = await fetch(
@@ -66,21 +66,22 @@ export default function OrderTabs({orders, setOrders, loading} : OrdersTabProps)
 
       if (!res.ok) {
         const error = await res.json()
-        throw new Error(error.message || 'Failed to update order')
+        console.log("Error response:", error);
+        // throw new Error(error.message || 'Failed to update order')
       }
-
+      // console.log(res);
       // Update local state
-      // setOrders((prev) =>
-      //   prev.map((order) =>
-      //     order.id === orderId
-      //       ? {
-      //           ...order,
-      //           stopLoss: updates.stopLoss || order.stopLoss,
-      //           takeProfit: updates.takeProfit || order.takeProfit,
-      //         }
-      //       : order
-      //   )
-      // )
+      setOrders((prev) =>
+      prev.map((order) =>
+        order.id === orderId
+          ? {
+              ...order,
+              stopLoss: updates.stopLoss ? Number(updates.stopLoss) : order.stopLoss,
+              takeProfit: updates.takeProfit ? Number(updates.takeProfit) : order.takeProfit,
+            }
+          : order
+      )
+    )
     } catch (error) {
       console.error('Update order error:', error)
       throw error
@@ -349,6 +350,7 @@ export default function OrderTabs({orders, setOrders, loading} : OrdersTabProps)
         onUpdate={handleUpdateOrder}
         onCloseOrder={handleCloseOrder}
         onDelete={handleDeleteOrder}
+        orderTab={orderTab}
       />
     </>
   )
