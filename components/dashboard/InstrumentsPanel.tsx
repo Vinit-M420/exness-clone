@@ -1,5 +1,5 @@
 'use client';
-import { useEffect, useState, useRef } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { Search as SearchIcon, X, MoreVertical, Plus, CreditCard, } from 'lucide-react'
 import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
@@ -7,30 +7,27 @@ import { Table, TableBody, TableHead, TableHeader, TableRow } from '@/components
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
 import { Command, CommandEmpty, CommandGroup, CommandItem, CommandList } from "@/components/ui/command"
 import { AllSymbols_Metadata } from '@/data/allsymbols'
-import { LatestSymbol, SymbolType } from '@/types/symbolType'
+import { SymbolType } from '@/types/symbolType'
 import { SortableRow } from './funcs/SortableRow'
 import { DndContext, closestCenter, KeyboardSensor, PointerSensor, useSensor, useSensors, DragEndEvent, } from '@dnd-kit/core'
 import { arrayMove, SortableContext,  sortableKeyboardCoordinates, verticalListSortingStrategy,} from '@dnd-kit/sortable'
 import { updateWatchlistOnServer } from './funcs/updateWatchlistOnServer'
-import { deriveSignal } from './funcs/deriveSignal'
-import { deriveAsk, deriveBid } from './funcs/deriveAskBid';
-import { Ticker } from '@/types/tickerType';
+import { usePriceStore } from './hooks/usePriceStore';
 
 type InstrumentsPanelProps = {
-  tickers: Record<string, Ticker>
-  setTickers: React.Dispatch<React.SetStateAction<Record<string, Ticker>>>
+  selectedSymbol: string | null
   setSelectedSymbol: React.Dispatch<React.SetStateAction<string | null>> 
 }
 
-export default function InstrumentsPanel({tickers, setSelectedSymbol, setTickers}: InstrumentsPanelProps) {
+export default function InstrumentsPanel({ selectedSymbol, setSelectedSymbol }: InstrumentsPanelProps) {
   const [searchQuery, setSearchQuery] = useState('');
   const [open, setOpen] = useState(false);
   const [jwtToken, setJwtToken] = useState<string | null>(null)
   const [symbols, setSymbols] = useState<SymbolType[]>([]);
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const [loading, setLoading] = useState(true);
-  // const [tickers, setTickers] = useState<Record<string, Ticker>>({});
-  const wsRef = useRef<WebSocket | null>(null);
+  const { subscribe, unsubscribe, tickers } = usePriceStore();
+  const prevSymbolsRef = useRef<string[]>([]);
 
   useEffect(() => {
     const token = localStorage.getItem("token");
@@ -49,26 +46,17 @@ export default function InstrumentsPanel({tickers, setSelectedSymbol, setTickers
 
         if (!res.ok) {
           // console.log("res:" , res);
-          // console.log("No watchlist found");
           setLoading(false);
           return;
         }
 
         const data = await res.json();
-
         const sorted = data.symbolList.sort(
           // eslint-disable-next-line @typescript-eslint/no-explicit-any
           (a: any, b: any) => a.orderIndex - b.orderIndex
         );
         setSymbols(sorted);
-        if (wsRef.current?.readyState === WebSocket.OPEN) {
-          sorted.forEach((s: { symbol: SymbolType; }) => {
-            wsRef.current?.send(JSON.stringify({
-              type: "subscribe",
-              symbol: s.symbol
-            }));
-          });
-        }
+
 
       } catch (err) {
         console.error("Failed to fetch watchlist", err);
@@ -100,7 +88,41 @@ export default function InstrumentsPanel({tickers, setSelectedSymbol, setTickers
     }
   }, [jwtToken, symbols]);
 
-  // Delete handler
+  useEffect(() => {
+    const watchlistSymbols = symbols.map(s => s.symbol);
+
+    const neededSymbols = new Set(watchlistSymbols);
+
+    if (selectedSymbol) {
+      neededSymbols.add(selectedSymbol);
+    }
+
+    const current = Array.from(neededSymbols);
+    const previous = prevSymbolsRef.current;
+
+    // Subscribe new symbols
+    current.forEach(symbol => {
+      if (!previous.includes(symbol)) {
+        subscribe(symbol);
+      }
+    });
+
+    // Unsubscribe removed symbols
+    previous.forEach(symbol => {
+      if (!current.includes(symbol)) {
+        unsubscribe(symbol);
+      }
+      // console.log("unsubbing: ", symbol);
+    });
+
+    prevSymbolsRef.current = current;
+
+  }, [symbols, selectedSymbol, subscribe, unsubscribe]);
+
+  const handleSelectSymbol = (symbol: string) => {
+    subscribe(symbol);
+  };
+
   const handleDelete = async (symbolToDelete: string) => {
     // Optimistic UI update
     setSymbols(prev => prev.filter(s => s.symbol !== symbolToDelete));
@@ -132,24 +154,20 @@ export default function InstrumentsPanel({tickers, setSelectedSymbol, setTickers
     }
   )
 
-  const addSymbolToList =  async (symbol: SymbolType) => {
+  const addSymbolToList = async (symbol: SymbolType) => {
     const exists = symbols.some((s) => s.symbol === symbol.symbol);
-      if (exists) return;
+    if (exists) return;
 
-      const updated = [...symbols, symbol];
-      setSymbols(updated);
+    const updated = [...symbols, symbol];
+    setSymbols(updated);
 
-      if (jwtToken) 
-        await updateWatchlistOnServer(updated, jwtToken);
-      
-      if (wsRef.current?.readyState === WebSocket.OPEN) {
-        wsRef.current.send(JSON.stringify({
-          type: "subscribe",
-          symbol: symbol.symbol
-        }));
-      }
-      setOpen(false);
-      setSearchQuery("");
+    if (jwtToken) 
+      await updateWatchlistOnServer(updated, jwtToken);
+
+    subscribe(symbol.symbol);   // ✅ clean call
+
+    setOpen(false);
+    setSearchQuery("");
   }
 
    const sensors = useSensors(
@@ -159,76 +177,76 @@ export default function InstrumentsPanel({tickers, setSelectedSymbol, setTickers
     })
   )
 
-  useEffect(() => {
-    const ws = new WebSocket(`${process.env.NEXT_PUBLIC_WS_API_BASE}`);
-    wsRef.current = ws;
-    ws.onopen = () => {
-      console.log("Connected to backend WS");
+  // useEffect(() => {
+  //   const ws = new WebSocket(`${process.env.NEXT_PUBLIC_WS_API_BASE}`);
+  //   wsRef.current = ws;
+  //   ws.onopen = () => {
+  //     console.log("Connected to backend WS");
 
-      // Subscribe to symbols currently visible in panel
-      symbols.forEach((s) => {
-        ws.send(JSON.stringify({
-          type: "subscribe",
-          symbol: s.symbol
-        }));  
-      });
-    };
+  //     // Subscribe to symbols currently visible in panel
+  //     symbols.forEach((s) => {
+  //       ws.send(JSON.stringify({
+  //         type: "subscribe",
+  //         symbol: s.symbol
+  //       }));  
+  //     });
+  //   };
 
-    ws.onmessage = (event) => {
-      // console.log("Raw WS message:", event.data);
-      if (typeof event.data !== "string" || !event.data.startsWith("{")) 
-        return;
+  //   ws.onmessage = (event) => {
+  //     // console.log("Raw WS message:", event.data);
+  //     if (typeof event.data !== "string" || !event.data.startsWith("{")) 
+  //       return;
   
-      try {
-        const tick = JSON.parse(event.data);
-        // console.log("Parsed tick:", tick);
-        if (tick.type !== "trade" || !Array.isArray(tick.data)) return;
+  //     try {
+  //       const tick = JSON.parse(event.data);
+  //       // console.log("Parsed tick:", tick);
+  //       if (tick.type !== "trade" || !Array.isArray(tick.data)) return;
 
-        // if (tick?.length > 0) {
-        //   const latest = tick[tick.length - 1];
-        // console.log("Latest: ", latest);
+  //       // if (tick?.length > 0) {
+  //       //   const latest = tick[tick.length - 1];
+  //       // console.log("Latest: ", latest);
 
-        const latestPerSymbol: Record<string, LatestSymbol> = {};
+  //       const latestPerSymbol: Record<string, LatestSymbol> = {};
 
-        for (const trade of tick.data) {
-          latestPerSymbol[trade.s] = trade; 
-        }
+  //       for (const trade of tick.data) {
+  //         latestPerSymbol[trade.s] = trade; 
+  //       }
         
-        setTickers((prev) => {
-          const updated = { ...prev };
+  //       setTickers((prev) => {
+  //         const updated = { ...prev };
 
-          for (const symbol in latestPerSymbol) {
-            const trade = latestPerSymbol[symbol];
-            const previous = prev[symbol];
+  //         for (const symbol in latestPerSymbol) {
+  //           const trade = latestPerSymbol[symbol];
+  //           const previous = prev[symbol];
 
-            updated[symbol] = {
-              price: trade.p,
-              timestamp: trade.t,
-              signal: deriveSignal(previous?.price, trade.p),
-              ask: deriveAsk(trade.p),
-              bid: deriveBid(trade.p)
-            };
-        }
-        // console.log(updated);
-        return updated;
-      });
-      } catch (e) {
-        console.error("Invalid JSON from WS:", event.data, "Error:", e);
-      }
-  };
+  //           updated[symbol] = {
+  //             price: trade.p,
+  //             timestamp: trade.t,
+  //             signal: deriveSignal(previous?.price, trade.p),
+  //             ask: deriveAsk(trade.p),
+  //             bid: deriveBid(trade.p)
+  //           };
+  //       }
+  //       // console.log(updated);
+  //       return updated;
+  //     });
+  //     } catch (e) {
+  //       console.error("Invalid JSON from WS:", event.data, "Error:", e);
+  //     }
+  // };
 
-    ws.onclose = () => {
-      console.log("Disconnected from backend WS");
-    };
+  //   ws.onclose = () => {
+  //     console.log("Disconnected from backend WS");
+  //   };
 
-    ws.onerror = (err) => {
-      console.error("Frontend WS error:", err);
-    };
+  //   ws.onerror = (err) => {
+  //     console.error("Frontend WS error:", err);
+  //   };
 
-    return () => {
-      ws.close();
-    };
-  }, [setTickers, symbols]);
+  //   return () => {
+  //     ws.close();
+  //   };
+  // }, [setTickers, symbols]);
 
   return (
     <div className="w-80 h-[calc(100vh-48px)] bg-[#1a1d2e] border-t-3 border-r-2 border-gray-800 flex flex-col">
@@ -317,7 +335,9 @@ export default function InstrumentsPanel({tickers, setSelectedSymbol, setTickers
                               <button
                                 onClick={(e) => {
                                   e.stopPropagation()
-                                  setSelectedSymbol(symbol.symbol)
+                                  setSelectedSymbol(symbol.symbol);
+                                  handleSelectSymbol(symbol.symbol)
+                                  // orderSymbolSubscription({symbol: symbol.symbol, wsRef: wsRef})
                                 }}
                                 className="p-1.5 rounded hover:bg-gray-700 text-gray-400 hover:text-green-400 transition-colors"
                                 title="Place an order"

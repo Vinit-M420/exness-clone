@@ -7,8 +7,7 @@ const FINNHUB_WS_URL = "wss://ws.finnhub.io";
 
 let finnhubSocket: WebSocket | null = null;
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-export async function connectFinnhub(onMessage : (data: any) => void){
+export async function connectFinnhub(onMessage : (data: string) => void){
     if (finnhubSocket) return;
 
     finnhubSocket = new WebSocket(

@@ -5,11 +5,11 @@ import InstrumentsPanel from '@/components/dashboard/InstrumentsPanel'
 import OrderTabs from '@/components/dashboard/OrdersTab'
 import OrderPlacingPanel from '@/components/dashboard/OrderPlacingPanel'
 // import BackgroundEffects from '@/components/BackgroundEffects'
-import { Ticker } from '@/types/tickerType';
+// import { Ticker } from '@/types/tickerType';
 import { Order } from "@/types/orderInterface"
 
 export default function DashboardPage() {
-  const [tickers, setTickers] = useState<Record<string, Ticker>>({});
+  // const [tickers, setTickers] = useState<Record<string, Ticker>>({});
   const [orders, setOrders] = useState<Order[]>([]);
   const [loading, setLoading] = useState(false);
   const [selectedSymbol, setSelectedSymbol] = useState<string | null>(null);
@@ -74,8 +74,7 @@ export default function DashboardPage() {
       <div className="relative z-10 flex mt-12 h-[calc(100vh-64px)]">
         {/* Left Sidebar - Instruments Panel */}
         <InstrumentsPanel 
-          tickers={tickers} 
-          setTickers={setTickers} 
+          selectedSymbol={selectedSymbol} 
           setSelectedSymbol={setSelectedSymbol} 
         />
         
@@ -97,8 +96,6 @@ export default function DashboardPage() {
 
         {/* Right Sidebar - Order Placing Panel */}
         <OrderPlacingPanel 
-          tickers={tickers} 
-          setTickers={setTickers} 
           setOrders={setOrders} 
           selectedSymbol={selectedSymbol} 
           setTableRerender={setTableRerender}

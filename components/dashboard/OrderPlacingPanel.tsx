@@ -3,26 +3,26 @@ import { useState } from 'react'
 import { X, Plus, Minus, ArrowBigUp, ArrowBigDown } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { InputGroup, InputGroupAddon, InputGroupInput } from '../ui/input-group'
-// import { TPSLInput } from '../TPSLinput'
-import { Ticker } from '@/types/tickerType'
 import { Order } from '@/types/orderInterface'
 import { TPSLInput } from '../TPSLinput'
 import { orders } from '@/backend/src/db/schema'
+import { usePriceStore } from './hooks/usePriceStore'
 
 type OrderPanelProps = {
-  tickers: Record<string, Ticker>,
-  setTickers: React.Dispatch<React.SetStateAction<Record<string, Ticker>>>,
+  // tickers: Record<string, Ticker>,
+  // setTickers: React.Dispatch<React.SetStateAction<Record<string, Ticker>>>,
   selectedSymbol: string | null,
   setOrders: React.Dispatch<React.SetStateAction<Order[]>>,
   setTableRerender: React.Dispatch<React.SetStateAction<boolean>>,
 }
 
-export default function OrderPlacingPanel({tickers, selectedSymbol, setTableRerender} : OrderPanelProps) {
+export default function OrderPlacingPanel({ selectedSymbol, setTableRerender} : OrderPanelProps) {
   const [orderType, setOrderType] = useState<'Market' | 'Pending'>('Market')
   const [volume, setVolume] = useState('0.01')
   const [takeProfit, setTakeProfit] = useState('')
   const [stopLoss, setStopLoss] = useState('')
-  const [triggerPrice, setTriggerPrice] = useState('')
+  const [triggerPrice, setTriggerPrice] = useState('');
+  const { tickers } = usePriceStore();
   const ticker = tickers[selectedSymbol || 'BINANCE:SOLUSDT']
 
   const buyPrice = ticker?.ask ?? 0
@@ -46,7 +46,6 @@ export default function OrderPlacingPanel({tickers, selectedSymbol, setTableRere
   const sellPercentage = 100 - buyPercentage;
   
   // useEffect(() => {
-
   // }, [orders])
   
   async function placeMarketOrder(side: 'BUY' | 'SELL') {
@@ -121,6 +120,11 @@ export default function OrderPlacingPanel({tickers, selectedSymbol, setTableRere
     }
   }
 
+  const getPriceClass = (price: number) => {
+  const integerPartLength = Math.floor(price).toString().length
+  return integerPartLength > 5 ? "text-xl" : "text-2xl"
+}
+
   return (
     <div className="w-80 h-[calc(100vh-48px)] bg-[#1a1d2e] border-l border-gray-800 flex flex-col z-10">
       {/* Header */}
@@ -144,13 +148,19 @@ export default function OrderPlacingPanel({tickers, selectedSymbol, setTableRere
           {/* Sell Card */}
           <div className="bg-linear-to-br from-red-950/30 to-transparent border border-red-900/30 rounded-lg p-3">
             <div className="text-xs text-red-400 mb-1">Sell</div>
-            <div className="text-2xl font-bold text-red-400">{sellPrice.toFixed(2)}</div>
+            <div className={`font-bold text-red-400 ${selectedSymbol ? getPriceClass(sellPrice) : "text-2xl"}`}
+            >
+              {selectedSymbol ? sellPrice.toFixed(2) : "-"}
+            </div>
           </div>
 
           {/* Buy Card */}
           <div className="bg-linear-to-br from-blue-950/30 to-transparent border border-blue-900/30 rounded-lg p-3">
             <div className="text-xs text-blue-400 mb-1">Buy</div>
-            <div className="text-2xl font-bold text-blue-400">{buyPrice.toFixed(2)}</div>
+            <div className={`font-bold text-blue-400 ${selectedSymbol ? getPriceClass(buyPrice) : "text-2xl"}`}
+            >
+              {selectedSymbol ? buyPrice.toFixed(2) : "-"}
+            </div>
           </div>
         </div>
 

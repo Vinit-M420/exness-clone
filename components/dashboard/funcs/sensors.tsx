@@ -1,7 +1,7 @@
-import { closestCenter, KeyboardSensor, PointerSensor, useSensors, } from '@dnd-kit/core'
+/* eslint-disable react-hooks/rules-of-hooks */
+import { KeyboardSensor, PointerSensor, useSensors, } from '@dnd-kit/core'
 import {   sortableKeyboardCoordinates,} from '@dnd-kit/sortable'
 
-// eslint-disable-next-line react-hooks/rules-of-hooks
 export const sensors = useSensors(
     useSensor(PointerSensor),
     useSensor(KeyboardSensor, {

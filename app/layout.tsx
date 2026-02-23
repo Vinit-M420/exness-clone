@@ -7,7 +7,7 @@ const inter = Inter({
   subsets: ['latin'],
   variable: '--font-inter',
   display: 'swap',  
-  preload: true, 
+  // preload: true, 
 })
 
 export default function RootLayout({
