@@ -355,7 +355,7 @@ export function OrderDetailsModal({
             <AlertDialogAction
               onClick={handleCloseOrder}
               disabled={loading}
-              className="bg-orange-600 hover:bg-orange-700 text-white"
+              className="bg-red-500 hover:bg-red-700 text-black"
             >
               {loading ? 'Closing...' : 'Close Position'}
             </AlertDialogAction>

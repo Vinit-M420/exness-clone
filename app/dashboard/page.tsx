@@ -84,9 +84,9 @@ export default function DashboardPage() {
           {/* Top - Chart */}
           <div className="flex-1 border-l border-gray-800 p-4 overflow-auto">
             <div className="bg-transparent border border-gray-800 rounded-lg p-6 h-full">
-              {/* <CandleChart 
+              <CandleChart 
                 selectedSymbol={selectedSymbol || 'BINANCE:BTCUSDT'}
-              /> */}
+              />
             </div>
           </div>
           
