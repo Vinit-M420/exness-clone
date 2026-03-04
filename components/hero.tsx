@@ -34,7 +34,7 @@ export default function Hero() {
           mb-10
           animate-[slideUp_0.8s_ease-out_0.4s_both]
         ">
-          A demo trading platform inspired by Exness. Supports{' '}
+          A paper trading platform inspired by Exness. Supports{' '}
           <span className="text-(--exness-gold) font-semibold">market orders</span>,{' '}
           <span className="text-(--exness-gold) font-semibold">limit orders</span>,{' '}
           <span className="text-(--exness-gold) font-semibold">stop-loss</span>,{' '}

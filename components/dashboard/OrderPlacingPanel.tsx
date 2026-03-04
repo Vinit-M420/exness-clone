@@ -6,7 +6,7 @@ import { InputGroup, InputGroupAddon, InputGroupInput } from '../ui/input-group'
 import { Order } from '@/types/orderInterface'
 import { TPSLInput } from '../TPSLinput'
 import { orders } from '@/backend/src/db/schema'
-import { usePriceStore } from './hooks/usePriceStore'
+import { usePriceStore } from './hooks/usePriceStoreHook'
 
 type OrderPanelProps = {
   // tickers: Record<string, Ticker>,

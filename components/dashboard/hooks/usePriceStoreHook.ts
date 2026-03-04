@@ -39,6 +39,7 @@ export function usePriceStore() {
             const previous = prev[symbol];
 
             updated[symbol] = {
+              symbol: symbol, 
               price: trade.p,
               timestamp: trade.t,
               signal: deriveSignal(previous?.price, trade.p),

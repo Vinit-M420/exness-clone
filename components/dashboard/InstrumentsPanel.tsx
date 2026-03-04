@@ -12,7 +12,7 @@ import { SortableRow } from './funcs/SortableRow'
 import { DndContext, closestCenter, KeyboardSensor, PointerSensor, useSensor, useSensors, DragEndEvent, } from '@dnd-kit/core'
 import { arrayMove, SortableContext,  sortableKeyboardCoordinates, verticalListSortingStrategy,} from '@dnd-kit/sortable'
 import { updateWatchlistOnServer } from './funcs/updateWatchlistOnServer'
-import { usePriceStore } from './hooks/usePriceStore';
+import { usePriceStore } from './hooks/usePriceStoreHook';
 
 type InstrumentsPanelProps = {
   selectedSymbol: string | null
@@ -33,6 +33,11 @@ export default function InstrumentsPanel({ selectedSymbol, setSelectedSymbol }: 
     const token = localStorage.getItem("token");
     setJwtToken(token);
   }, [])
+
+  // In your InstrumentsPanel component, add some debugging
+  useEffect(() => {
+    console.log("Tickers updated:", tickers);
+  }, [tickers]);
 
   useEffect(() => {
     const fetchWatchlist = async () => {
@@ -176,77 +181,6 @@ export default function InstrumentsPanel({ selectedSymbol, setSelectedSymbol }: 
       coordinateGetter: sortableKeyboardCoordinates,
     })
   )
-
-  // useEffect(() => {
-  //   const ws = new WebSocket(`${process.env.NEXT_PUBLIC_WS_API_BASE}`);
-  //   wsRef.current = ws;
-  //   ws.onopen = () => {
-  //     console.log("Connected to backend WS");
-
-  //     // Subscribe to symbols currently visible in panel
-  //     symbols.forEach((s) => {
-  //       ws.send(JSON.stringify({
-  //         type: "subscribe",
-  //         symbol: s.symbol
-  //       }));  
-  //     });
-  //   };
-
-  //   ws.onmessage = (event) => {
-  //     // console.log("Raw WS message:", event.data);
-  //     if (typeof event.data !== "string" || !event.data.startsWith("{")) 
-  //       return;
-  
-  //     try {
-  //       const tick = JSON.parse(event.data);
-  //       // console.log("Parsed tick:", tick);
-  //       if (tick.type !== "trade" || !Array.isArray(tick.data)) return;
-
-  //       // if (tick?.length > 0) {
-  //       //   const latest = tick[tick.length - 1];
-  //       // console.log("Latest: ", latest);
-
-  //       const latestPerSymbol: Record<string, LatestSymbol> = {};
-
-  //       for (const trade of tick.data) {
-  //         latestPerSymbol[trade.s] = trade; 
-  //       }
-        
-  //       setTickers((prev) => {
-  //         const updated = { ...prev };
-
-  //         for (const symbol in latestPerSymbol) {
-  //           const trade = latestPerSymbol[symbol];
-  //           const previous = prev[symbol];
-
-  //           updated[symbol] = {
-  //             price: trade.p,
-  //             timestamp: trade.t,
-  //             signal: deriveSignal(previous?.price, trade.p),
-  //             ask: deriveAsk(trade.p),
-  //             bid: deriveBid(trade.p)
-  //           };
-  //       }
-  //       // console.log(updated);
-  //       return updated;
-  //     });
-  //     } catch (e) {
-  //       console.error("Invalid JSON from WS:", event.data, "Error:", e);
-  //     }
-  // };
-
-  //   ws.onclose = () => {
-  //     console.log("Disconnected from backend WS");
-  //   };
-
-  //   ws.onerror = (err) => {
-  //     console.error("Frontend WS error:", err);
-  //   };
-
-  //   return () => {
-  //     ws.close();
-  //   };
-  // }, [setTickers, symbols]);
 
   return (
     <div className="w-80 h-[calc(100vh-48px)] bg-[#1a1d2e] border-t-3 border-r-2 border-gray-800 flex flex-col">

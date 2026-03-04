@@ -7,6 +7,7 @@ import OrderPlacingPanel from '@/components/dashboard/OrderPlacingPanel'
 // import BackgroundEffects from '@/components/BackgroundEffects'
 // import { Ticker } from '@/types/tickerType';
 import { Order } from "@/types/orderInterface"
+import CandleChart from '@/components/dashboard/CandleChart';
 
 export default function DashboardPage() {
   // const [tickers, setTickers] = useState<Record<string, Ticker>>({});
@@ -83,8 +84,9 @@ export default function DashboardPage() {
           {/* Top - Chart */}
           <div className="flex-1 border-l border-gray-800 p-4 overflow-auto">
             <div className="bg-transparent border border-gray-800 rounded-lg p-6 h-full">
-              <h2 className="text-xl font-semibold text-gray-200 mb-4">Chart Area</h2>
-              <p className="text-gray-400">TradingView chart will go here</p>
+              {/* <CandleChart 
+                selectedSymbol={selectedSymbol || 'BINANCE:BTCUSDT'}
+              /> */}
             </div>
           </div>
           
