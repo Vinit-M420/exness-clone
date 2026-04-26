@@ -7,6 +7,7 @@ export async function processTrade(
   volume: number,
   timestamp: number
 ): Promise<CandleUpdate | null> {
+  
   const minute = Math.floor(timestamp / 60000) * 60000;
   const current = await getCurrentCandle(symbol);
 

@@ -9,7 +9,7 @@ export async function getCurrentCandle(symbol: string): Promise<Candle | null> {
   return data ? JSON.parse(data) : null;
 }
 
-export async function setCurrentCandle(symbol: string, candle: Candle): Promise<void> {
+export async function  setCurrentCandle(symbol: string, candle: Candle): Promise<void> {
   const key = `candle:current:${symbol}`;
   await redisClient.set(key, JSON.stringify(candle));
 }

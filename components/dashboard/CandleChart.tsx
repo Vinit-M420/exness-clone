@@ -72,7 +72,7 @@ export default function CandleChart({ selectedSymbol }: CandlestickChartProps) {
   //   if (selectedSymbol) {
   //     fetchCandles()
   //   }
-  // }, [selectedSymbol])
+  // }, [selectedSymbol]);
 
   // Initialize chart
   useEffect(() => {
