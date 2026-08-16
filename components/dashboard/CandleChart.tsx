@@ -351,7 +351,7 @@ export default function CandleChart({ selectedSymbol }: CandlestickChartProps) {
       </div>
       
       {/* Chart area - container always mounted so the chart initializes once and stays alive */}
-      <div className="relative w-full flex-1 min-h-[260px]">
+      <div className="relative w-full flex-1 min-h-65">
         <div
           ref={chartContainerRef}
           className="w-full h-full"

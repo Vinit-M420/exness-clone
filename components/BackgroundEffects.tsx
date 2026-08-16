@@ -35,7 +35,7 @@ export default function BackgroundEffects() {
       {/* Glow Orb 1 */}
       <div 
         data-glow-orb
-        className="fixed -top-[200px] -right-[200px] w-[600px] h-[600px] rounded-full opacity-15 pointer-events-none z-0 transition-transform duration-300 ease-out animate-[float_15s_ease-in-out_infinite]"
+        className="fixed -top-50 -right-50 w-150 h-150 rounded-full opacity-15 pointer-events-none z-0 transition-transform duration-300 ease-out animate-[float_15s_ease-in-out_infinite]"
         style={{
           background: 'var(--exness-gold)',
           filter: 'blur(100px)'
@@ -45,7 +45,7 @@ export default function BackgroundEffects() {
       {/* Glow Orb 2 */}
       <div 
         data-glow-orb
-        className="fixed -bottom-[200px] -left-[200px] w-[600px] h-[600px] rounded-full opacity-15 pointer-events-none z-0 transition-transform duration-300 ease-out"
+        className="fixed -bottom-50 -left-50 w-150 h-150 rounded-full opacity-15 pointer-events-none z-0 transition-transform duration-300 ease-out"
         style={{
           background: '#4A90E2',
           filter: 'blur(100px)',

@@ -38,7 +38,7 @@ export function SortableRow({ item, ticker, onDelete, setSelectedSymbol }: Sorta
       className="hover:bg-[#1f2333] border-b border-gray-800/50 group"
     >
       {/* Symbol */}
-      <TableCell className="py-2 w-[33.33%] border-r border-gray-800">
+      <TableCell className="py-2 w-1/3 border-r border-gray-800">
         <div className="flex items-center justify-between gap-2">
           <div className="flex items-center gap-2 flex-1 min-w-0">
             <button
@@ -92,7 +92,7 @@ export function SortableRow({ item, ticker, onDelete, setSelectedSymbol }: Sorta
       </TableCell>
 
       {/* Signal Indicator */}
-      <TableCell className="py-2 w-[16.67%]">
+      <TableCell className="py-2 w-1/6">
         <div className="flex items-center justify-center">
           <div className={`w-6 h-6 rounded ${ticker?.signal === 'buy' ? 'bg-green-500/20' : ticker?.signal === 'sell' ? 'bg-red-500/20' : 'bg-gray-500/20'} flex items-center justify-center`}>
             <div
@@ -104,14 +104,14 @@ export function SortableRow({ item, ticker, onDelete, setSelectedSymbol }: Sorta
       </TableCell>
 
       {/* Bid */}
-      <TableCell className="py-2 w-[33.33%]">
+      <TableCell className="py-2 w-1/3">
         <div className={`flex items-center justify-end text-sm font-mono ${item.signal ? 'text-green-400' : 'text-red-400'} ${item.signal ? 'bg-green-500/10' : 'bg-red-500/10'} px-2 rounded`}>
           {ticker?.bid?.toFixed(2) ?? "-"}
         </div>
       </TableCell>
 
       {/* Ask */}
-      <TableCell className="py-2 w-[16.67%]">
+      <TableCell className="py-2 w-1/6">
         <div className="flex items-center justify-end text-sm font-mono text-gray-400">
           {ticker?.ask?.toFixed(2) ?? "-"}
         </div>

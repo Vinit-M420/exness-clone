@@ -83,13 +83,13 @@ export default function DashboardPage() {
         <div className="flex-1 flex flex-col overflow-hidden">
           {/* Top - Chart */}
           <div className="flex-1 border-l border-gray-800 p-4 overflow-auto">
-            <div className="bg-transparent border border-gray-800 rounded-lg p-6 h-[380px]">
+            <div className="bg-transparent border border-gray-800 rounded-lg p-6 h-95">
               <CandleChart selectedSymbol={selectedSymbol || 'BINANCE:BTCUSDT'} />
             </div>
           </div>
           
           {/* Bottom - Order Tabs */}
-          <div className="h-[300px] border-l border-t border-gray-800 p-4">
+          <div className="h-75 border-l border-t border-gray-800 p-4">
             <OrderTabs orders={orders} setOrders={setOrders} loading={loading} />
           </div>
         </div>

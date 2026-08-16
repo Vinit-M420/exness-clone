@@ -49,7 +49,7 @@ export default function Hero() {
           animate-[slideUp_0.8s_ease-out_0.6s_both]
           max-md:flex-col
           max-md:w-full
-          max-md:max-w-[320px]
+          max-md:max-w-80
         ">
           <Button
             asChild
@@ -94,8 +94,8 @@ export default function Hero() {
               before:-translate-y-1/2 
               before:transition-all 
               before:duration-[0.6s] 
-              hover:before:w-[300px] 
-              hover:before:h-[300px]
+              hover:before:w-75
+              hover:before:h-75
             "
           >
             <Link href="/signup">
