@@ -4,10 +4,11 @@
   "private": true,
   "scripts": {
     "dev": "next dev",
+    "dev:backend": "cd backend && bun --watch src/index.ts",
+    "dev:all": "trap 'kill 0' EXIT; bun run dev:backend & bun run dev",
     "build": "next build",
     "start": "next start",
-    "lint": "eslint",
-    "backend": "bun --watch src/index.js"
+    "lint": "eslint"
   },
   "dependencies": {
     "@dnd-kit/core": "^6.3.1",

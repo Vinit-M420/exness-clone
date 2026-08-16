@@ -41,6 +41,7 @@ Run frontend and backend from their own directories; each needs its own `bun ins
 **Frontend (repo root)**
 - Install: `bun install`
 - Dev server: `bun run dev` (Next.js, default port 3000)
+- Run both frontend and backend together: `bun run dev:all` (from repo root; requires `cd backend && bun install` to have been run at least once, plus Postgres/Redis up — see Backend section below)
 - Build: `bun run build`
 - Start production build: `bun run start`
 - Lint: `bun run lint` (ESLint via `eslint.config.mjs`, next/core-web-vitals + next/typescript)
@@ -51,7 +52,7 @@ Run frontend and backend from their own directories; each needs its own `bun ins
 **Backend (`backend/`)**
 - Install: `cd backend && bun install`
 - Dev server: `bun --watch src/index.ts` (starts Hono API on port 3002 **and** the WS price server on port 3001, since `src/index.ts` imports `./ws/priceServer` as a side effect)
-  - Note: the root `package.json` has a `backend` script (`bun --watch src/index.js`) that is stale/broken — wrong extension and wrong working directory. Run the command above from inside `backend/` instead.
+  - Also runnable from repo root as `bun run dev:backend`, or together with the frontend via `bun run dev:all`.
 - Build: Not configured (Bun runs TS directly; no build step defined)
 - Lint: Not configured (no ESLint config in `backend/`)
 - Format: Not configured
