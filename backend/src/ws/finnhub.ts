@@ -2,6 +2,7 @@ import dotenv from "dotenv";
 import { set } from "./priceStore";
 import { priceWatcher } from "./priceWatcher";
 import { handleTrades } from "../handler/tradeHandler";
+import { redisClient } from "../redis/client";
 import type { CandleUpdate } from "../types/candleType";
 dotenv.config();
 
@@ -20,8 +21,21 @@ export async function connectFinnhub(
   
   finnhubSocket = new WebSocket(`${FINNHUB_WS_URL}?token=${process.env.FINNHUB_API_KEY}`);
 
-  finnhubSocket.onopen = () => {
+  finnhubSocket.onopen = async () => {
     console.log("Connected to Finnhub WS");
+
+    // Re-subscribe to whatever symbols were active before this connection
+    // opened (initial boot, or after a dropped/reconnected upstream socket) -
+    // otherwise price/candle flow silently stops after a reconnect until a
+    // new frontend client happens to connect and re-triggers a subscribe.
+    try {
+      const symbols = await redisClient.smembers("active:symbols");
+      for (const symbol of symbols) {
+        subscribeSymbol(symbol);
+      }
+    } catch (error) {
+      console.error("Failed to resubscribe active symbols on Finnhub connect:", error);
+    }
   };
 
   finnhubSocket.onmessage = async (event) => {
