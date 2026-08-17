@@ -47,6 +47,12 @@ export default function CandleChart({ selectedSymbol }: CandlestickChartProps) {
   const [isLoadingHistory, setIsLoadingHistory] = useState(false)
   const [chartError, setChartError] = useState<string | null>(null)
 
+  // Whether the next `chartData` change should be applied as a full
+  // setData()+fitContent() (history load / symbol switch) or as a single
+  // incremental series.update() (a live tick) - avoids resetting the
+  // user's zoom/pan on every trade.
+  const renderModeRef = useRef<'full' | 'incremental'>('full')
+
   // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
   // STEP 1: Fetch historical candles, then connect to WebSocket
   // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
@@ -56,6 +62,7 @@ export default function CandleChart({ selectedSymbol }: CandlestickChartProps) {
     }
 
     let cancelled = false
+    renderModeRef.current = 'full'
     setChartData([])
     setChartError(null)
 
@@ -130,22 +137,44 @@ export default function CandleChart({ selectedSymbol }: CandlestickChartProps) {
       return
     }
 
-    console.log(`🔌 Connecting to WebSocket for ${selectedSymbol}`)
-    const ws = new WebSocket(`${process.env.NEXT_PUBLIC_WS_API_BASE}`)
-    wsRef.current = ws
+    let cancelled = false
+    let reconnectTimeout: ReturnType<typeof setTimeout> | null = null
 
-    ws.onopen = () => {
-      console.log('✅ WebSocket connected')
-      setIsConnected(true)
-      
-      ws.send(JSON.stringify({
-        type: 'subscribe',
-        symbol: selectedSymbol
-      }))
-      console.log(`📡 Subscribed to ${selectedSymbol}`)
+    const connect = () => {
+      if (cancelled) return
+
+      console.log(`🔌 Connecting to WebSocket for ${selectedSymbol}`)
+      const ws = new WebSocket(`${process.env.NEXT_PUBLIC_WS_API_BASE}`)
+      wsRef.current = ws
+
+      ws.onopen = () => {
+        console.log('✅ WebSocket connected')
+        setIsConnected(true)
+
+        ws.send(JSON.stringify({
+          type: 'subscribe',
+          symbol: selectedSymbol
+        }))
+        console.log(`📡 Subscribed to ${selectedSymbol}`)
+      }
+
+      ws.onmessage = onMessage
+
+      ws.onerror = (error) => {
+        console.error('❌ WebSocket error:', error)
+        setIsConnected(false)
+      }
+
+      ws.onclose = () => {
+        console.log('🔌 WebSocket disconnected')
+        setIsConnected(false)
+        if (!cancelled) {
+          reconnectTimeout = setTimeout(connect, 2000)
+        }
+      }
     }
 
-    ws.onmessage = (event) => {
+    const onMessage = (event: MessageEvent) => {
       try {
         const message = JSON.parse(event.data)
         
@@ -164,19 +193,17 @@ export default function CandleChart({ selectedSymbol }: CandlestickChartProps) {
 
           setChartData((prev) => {
             if (prev.length === 0) {
-              console.log('🆕 First candle - adding to chart')
+              renderModeRef.current = 'full'
               return [newCandle]
             }
 
             const lastTime = prev[prev.length - 1].time
-            if (newCandle.time > lastTime) {
-              console.log('➕ Adding NEW candle to chart')
-              const updated = [...prev, newCandle]
-              console.log(`📊 Chart now has ${updated.length} candles`)
-              return updated
-            } else if (newCandle.time === lastTime) {
-              console.log('🔄 Updating LAST candle')
-              const updated = [...prev]
+            if (newCandle.time >= lastTime) {
+              // Both a brand-new bar and an in-place update to the last bar
+              // can be applied as a single incremental series.update() -
+              // no need to redraw/refit the whole chart for either.
+              renderModeRef.current = 'incremental'
+              const updated = newCandle.time > lastTime ? [...prev, newCandle] : [...prev]
               updated[updated.length - 1] = newCandle
               return updated
             } else {
@@ -193,25 +220,23 @@ export default function CandleChart({ selectedSymbol }: CandlestickChartProps) {
       }
     }
 
-    ws.onerror = (error) => {
-      console.error('❌ WebSocket error:', error)
-      setIsConnected(false)
-    }
-
-    ws.onclose = () => {
-      console.log('🔌 WebSocket disconnected')
-      setIsConnected(false)
-    }
+    connect()
 
     return () => {
-      if (ws.readyState === WebSocket.OPEN) {
-        ws.send(JSON.stringify({
-          type: 'unsubscribe',
-          symbol: selectedSymbol
-        }))
-        console.log(`📴 Unsubscribed from ${selectedSymbol}`)
+      cancelled = true
+      if (reconnectTimeout) clearTimeout(reconnectTimeout)
+
+      const ws = wsRef.current
+      if (ws) {
+        if (ws.readyState === WebSocket.OPEN) {
+          ws.send(JSON.stringify({
+            type: 'unsubscribe',
+            symbol: selectedSymbol
+          }))
+          console.log(`📴 Unsubscribed from ${selectedSymbol}`)
+        }
+        ws.close()
       }
-      ws.close()
       setChartData([])
     }
   }, [selectedSymbol])
@@ -301,25 +326,24 @@ export default function CandleChart({ selectedSymbol }: CandlestickChartProps) {
       return
     }
 
-    if (chartData.length > 0) {
-      console.log(`📈 Rendering ${chartData.length} candles on chart`)
-      console.log('📊 Chart data:', chartData)
-      
-      try {
-        candlestickSeriesRef.current.setData(chartData)
-        console.log('✅ Data set successfully')
-        setChartError(null)
-
-        if (chartRef.current) {
-          chartRef.current.timeScale().fitContent()
-          console.log('✅ Chart fitted to content')
-        }
-      } catch (error) {
-        console.error('❌ Error setting chart data:', error)
-        setChartError(error instanceof Error ? error.message : String(error))
+    try {
+      if (chartData.length === 0) {
+        // Clear any previous symbol's candles instead of leaving them on
+        // screen until the next symbol's data arrives.
+        candlestickSeriesRef.current.setData([])
+        return
       }
-    } else {
-      console.log('⚠️ No candle data to render yet - waiting for trades...')
+
+      if (renderModeRef.current === 'incremental') {
+        candlestickSeriesRef.current.update(chartData[chartData.length - 1])
+      } else {
+        candlestickSeriesRef.current.setData(chartData)
+        chartRef.current?.timeScale().fitContent()
+      }
+      setChartError(null)
+    } catch (error) {
+      console.error('❌ Error rendering chart data:', error)
+      setChartError(error instanceof Error ? error.message : String(error))
     }
   }, [chartData])
 

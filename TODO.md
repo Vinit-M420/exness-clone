@@ -54,17 +54,35 @@ Claude — mention the item name and it has enough context to pick up.
 
 ## B. Candle chart correctness (frontend)
 
-- [ ] **B1. Stop resetting zoom/pan on every live tick.**
-      `components/dashboard/CandleChart.tsx` calls `setData()` +
-      `fitContent()` on every chart-data change (~line 258), including
-      single live-tick updates. Use `series.update()` for the incremental
-      case; reserve `setData()`/`fitContent()` for initial load and symbol
-      switches.
-- [ ] **B2. Add WS auto-reconnect** to the chart's own socket connection
-      (currently just shows a disconnected indicator, no retry).
+- [x] **B1. Stop resetting zoom/pan on every live tick.**
+      `CandleChart.tsx` now tracks a `renderModeRef` ('full' vs
+      'incremental'). History loads and symbol switches still do
+      `setData()` + `fitContent()`; live WS ticks (new bar or update to
+      the last bar) now call `series.update()` instead, so the user's
+      zoom/pan is no longer reset on every trade. Also fixed a related bug
+      found while doing this: switching symbols left the previous symbol's
+      candles on screen until new data arrived — the render effect now
+      calls `setData([])` when `chartData` goes empty.
+- [x] **B2. Add WS auto-reconnect** to the chart's own socket connection.
+      `CandleChart.tsx`'s WS effect now retries with a 2s delay on close
+      (mirrors the backend's Finnhub reconnect pattern), guarded by a
+      `cancelled` flag so it stops cleanly on symbol change/unmount.
 - [ ] **B3. Reuse the shared price-store WebSocket** instead of opening an
       independent connection in `CandleChart.tsx` — dedupe against
       `components/dashboard/hooks/usePriceStoreHook.ts`.
+      **Scope turned out bigger than originally written**: there is no
+      existing shared/singleton connection to dedupe against —
+      `InstrumentsPanel.tsx` and `OrderPlacingPanel.tsx` each independently
+      call `usePriceStore()`, so the app already opens 2 backend WS
+      connections before `CandleChart.tsx`'s own (3 total). A real fix
+      means lifting `usePriceStore()` up to `app/dashboard/page.tsx` and
+      passing `tickers`/`subscribe`/`unsubscribe` down as props to all
+      three consumers (consistent with this codebase's existing
+      prop-drilling pattern per CLAUDE.md), plus extending the hook to
+      also parse and expose `candle`-type messages so `CandleChart` can
+      consume it instead of raw trade ticks. That's a 4-file behavioral
+      change I haven't made yet — flagged for a scoping decision before
+      starting.
 
 ## C. Chart toolbar (currently ~zero coverage)
 
