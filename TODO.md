@@ -128,15 +128,30 @@ Claude — mention the item name and it has enough context to pick up.
 
 ## D. Top bar
 
-- [ ] **D1. Multi-symbol tabs.** Support multiple simultaneously "open"
-      instrument tabs (like browser tabs) instead of a single
-      `selectedSymbol` string in `app/dashboard/page.tsx`. This is a state
-      model change — plan it before touching layout/CSS.
-- [ ] **D2. Account selector** ("Real/Demo, Standard, balance") — even a
-      static/mocked version tied to the wallet data already in the schema.
-- [ ] **D3. History icon, layout icon, settings gear, avatar, Deposit
-      button** — mostly UI scaffolding; Deposit can be a no-op modal for
-      now (no real payments — see CLAUDE.md, this is a learning project).
+- [x] **D1. Multi-symbol tabs.** Added `openSymbols: string[]` state in
+      `app/dashboard/page.tsx` (persisted to `localStorage`), kept in sync
+      with `selectedSymbol` via an effect rather than changing any child
+      prop signatures — `InstrumentsPanel`/`OrderPlacingPanel`/`CandleChart`
+      still just receive `selectedSymbol`/`setSelectedSymbol` as before.
+      `Navbar` renders a tab strip (click to switch, hover to close, "+"
+      opens a symbol-search popover to open a new tab) via new optional
+      props (`openSymbols`, `activeSymbol`, `onSelectSymbol`,
+      `onCloseSymbol`, `onAddSymbol`) that only render when passed — the
+      landing/login/signup pages call `<Navbar />` with no props and are
+      unaffected.
+- [x] **D2. Account selector.** Static "Real Standard" label + live
+      balance, fetched once via `GET /api/v1/wallet/get` in `page.tsx` and
+      passed down as `walletBalance`. No Real/Demo switching (not backed
+      by anything server-side) — deliberately just a display, not a fake
+      interactive dropdown.
+- [x] **D3. History/layout/settings icons, avatar, Deposit button.**
+      History/Layout/Settings are unwired icon buttons (chrome-only,
+      consistent with existing unwired icons already in
+      `InstrumentsPanel.tsx`/`OrdersTab.tsx`). Avatar has a dropdown with
+      a **functional** Log out (clears the token, redirects to `/login`)
+      rather than being pure decoration. Deposit opens a no-op `Dialog`
+      explaining deposits aren't wired to a real payment provider, per
+      CLAUDE.md's no-real-money constraint.
 
 ## E. Fixes / smaller items
 

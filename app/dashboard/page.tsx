@@ -14,12 +14,64 @@ export default function DashboardPage() {
   const [orders, setOrders] = useState<Order[]>([]);
   const [loading, setLoading] = useState(false);
   const [selectedSymbol, setSelectedSymbol] = useState<string | null>(null);
+  const [openSymbols, setOpenSymbols] = useState<string[]>(() => {
+    if (typeof window !== "undefined") {
+      try {
+        const raw = localStorage.getItem("openSymbols");
+        if (raw) return JSON.parse(raw);
+      } catch {
+        // ignore malformed saved tabs
+      }
+    }
+    return [];
+  });
+  const [walletBalance, setWalletBalance] = useState<{ balance: string; currency: string } | null>(null);
   const [tableRerender, setTableRerender] = useState(false);
   const [jwtToken] = useState<string | null>(() => {
-    if (typeof window !== "undefined") { 
+    if (typeof window !== "undefined") {
       return localStorage.getItem("token"); }
     return null;
   });
+
+  // Keep whatever symbol is currently selected as an open tab.
+  useEffect(() => {
+    if (selectedSymbol && !openSymbols.includes(selectedSymbol)) {
+      setOpenSymbols((prev) => [...prev, selectedSymbol]);
+    }
+  }, [selectedSymbol, openSymbols]);
+
+  useEffect(() => {
+    localStorage.setItem("openSymbols", JSON.stringify(openSymbols));
+  }, [openSymbols]);
+
+  useEffect(() => {
+    if (!jwtToken) return;
+
+    const fetchWallet = async () => {
+      try {
+        const res = await fetch(`${process.env.NEXT_PUBLIC_API_BASE}/api/v1/wallet/get`, {
+          headers: { Authorization: `Bearer ${jwtToken}` },
+        });
+        if (!res.ok) return;
+        const data = await res.json();
+        if (data.response) setWalletBalance(data.response);
+      } catch (err) {
+        console.error("Failed to fetch wallet balance", err);
+      }
+    };
+
+    fetchWallet();
+  }, [jwtToken]);
+
+  const handleCloseTab = (symbol: string) => {
+    setOpenSymbols((prev) => {
+      const next = prev.filter((s) => s !== symbol);
+      if (selectedSymbol === symbol) {
+        setSelectedSymbol(next[next.length - 1] ?? null);
+      }
+      return next;
+    });
+  };
 
   useEffect(() => {
     if (!jwtToken) return
@@ -71,7 +123,14 @@ export default function DashboardPage() {
   return (
     <>
       {/* <BackgroundEffects /> */}
-      <Navbar />  
+      <Navbar
+        openSymbols={openSymbols}
+        activeSymbol={selectedSymbol}
+        onSelectSymbol={setSelectedSymbol}
+        onCloseSymbol={handleCloseTab}
+        onAddSymbol={setSelectedSymbol}
+        walletBalance={walletBalance}
+      />
       <div className="relative z-10 flex mt-12 h-[calc(100vh-64px)]">
         {/* Left Sidebar - Instruments Panel */}
         <InstrumentsPanel 
