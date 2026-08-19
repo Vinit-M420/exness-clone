@@ -1,7 +1,11 @@
 import { redisClient } from "../redis/client";
 import type { Candle } from "../types/candleType";
 
-const HISTORY_LIMIT = 100;
+// 1500 one-minute candles (~25h) so higher-timeframe rollups (see
+// candles/aggregate.tsx) have enough raw history to aggregate from - a plain
+// 100-candle window only covers ~1h40m, which is too thin for anything above
+// ~15m buckets.
+const HISTORY_LIMIT = 1500;
 
 // How long an idle symbol's candle data lingers in Redis before expiring.
 // Refreshed on every write, so actively-traded symbols never expire.

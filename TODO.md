@@ -46,11 +46,18 @@ Claude — mention the item name and it has enough context to pick up.
       shared `SymbolEnum` (from `schemas/market_order.ts`) and `limit`
       (integer, 1–500) via `HttpStatusCode.BadRequest` on failure.
       `response.count` now reflects the actually-returned slice length.
-- [ ] **A7. Multi-timeframe candle support (1m/5m/15m/1h/etc).**
-      Currently hardcoded to 1-minute buckets everywhere in
-      `candleEngine.tsx`/`candleStore.tsx`/`routes/candles.ts`. This is a
-      bigger change — needed before the frontend timeframe selector (C1)
-      can be real rather than cosmetic. Do this before C1.
+- [x] **A7. Multi-timeframe candle support (1m/5m/15m/30m/1h/4h/1D).**
+      Storage stays 1-minute-only (unchanged from A1-A6); higher
+      timeframes are rolled up on read. New `backend/src/candles/aggregate.tsx`
+      (`aggregateCandles`) buckets ascending 1m candles into
+      `intervalMinutes` buckets. `routes/candles.ts` gained an `interval`
+      query param (validated against `ALLOWED_INTERVALS_MINUTES`) and
+      aggregates `history + current` before slicing to `limit`. Bumped
+      `HISTORY_LIMIT` in `candleStore.tsx` from 100 to 1500 (~25h of 1m
+      candles) so higher timeframes have enough raw data to roll up from —
+      still thin for 4h/1D (a handful of buckets), a known limitation of
+      deriving-on-read rather than maintaining separate live aggregates
+      per timeframe.
 
 ## B. Candle chart correctness (frontend)
 
@@ -86,18 +93,38 @@ Claude — mention the item name and it has enough context to pick up.
 
 ## C. Chart toolbar (currently ~zero coverage)
 
-- [ ] **C1. Timeframe selector** (1m/5m/15m/1h/4h/1D). Depends on A7
-      landing first — otherwise it's a dropdown with no real backing data.
-- [ ] **C2. Indicators button** ("f(x)") — start with 1-2 simple overlays
-      (e.g. moving average) rather than a full indicator engine.
-- [ ] **C3. Overlay symbol comparison** — popover to add a second symbol's
-      price series onto the same chart for comparison.
-- [ ] **C4. Save / screenshot controls** — chart layout save (localStorage
-      is fine for a learning project) and a PNG export via
-      lightweight-charts' built-in screenshot API.
-- [ ] **C5. OHLC readout + %-change** at top-left of chart, and a dashed
-      current-price line with price tag on the right edge (both supported
-      natively by lightweight-charts, just not configured yet).
+- [x] **C1. Timeframe selector.** `CandleChart.tsx` toolbar has a
+      Select (1m/5m/15m/30m/1h/4h/1D) backed by A7. History refetches with
+      `&interval=`; live 1m WS ticks are rolled up client-side into the
+      selected bucket size via `bucketTimeMs()` (a `timeframeRef` avoids
+      stale closures in the WS handler, and the WS connection itself isn't
+      torn down on timeframe change — only history refetches).
+- [x] **C2. Indicators button.** Popover with two toggleable SMA overlays
+      (SMA 20, SMA 50) — `computeSMA()` recomputed client-side from
+      `chartData`, rendered as `addLineSeries()` lines created/removed as
+      toggled. Deliberately just 2 fixed-period SMAs, not a general
+      indicator engine.
+- [x] **C3. Overlay symbol comparison.** "Compare" popover (search over
+      `AllSymbols_Metadata`, chip + remove, "Ok" to close) matching the
+      real Exness popover. Selected symbol's history is fetched at the
+      same timeframe, normalized to % change from its first candle, and
+      plotted as a line on a separate left price scale (shown only while
+      a compare symbol is active). **Scoped down**: refreshes on
+      selection/timeframe change but is not live-ticked per trade (no WS
+      subscribe for the overlay symbol) — kept out to avoid a second live
+      data path; revisit if live overlay updates are wanted.
+- [x] **C4. Save / screenshot controls.** "Save" persists
+      `{timeframeMinutes, smaPeriods, overlaySymbol}` to
+      `localStorage` per symbol (`chartPrefs:<symbol>`), loaded back on
+      symbol switch. Screenshot button uses `chart.takeScreenshot()` →
+      canvas → `toBlob` → triggers a real browser download (this is the
+      actual running app, not an Artifact, so a download link is fine).
+- [x] **C5. OHLC readout + %-change.** Top-left overlay shows O/H/L/C of
+      the last candle plus %-change (close vs. open of that bar). The
+      dashed current-price line with price tag turned out to already be
+      lightweight-charts' *default* behavior (`priceLineVisible: true`,
+      `priceLineStyle: LineStyle.Dashed` by default) — just made it
+      explicit on the series options instead of leaving it implicit.
 
 ## D. Top bar
 
