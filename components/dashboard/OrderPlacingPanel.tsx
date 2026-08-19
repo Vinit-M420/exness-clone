@@ -36,13 +36,9 @@ export default function OrderPlacingPanel({ selectedSymbol, setTableRerender} : 
     return null
   })
 
-  const [buyPercentage] = useState(() => {
-    if (typeof window !== 'undefined') {
-      return Math.floor(Math.random() * 20) + 40; // 40–60%
-    }
-    return 50; // SSR fallback
-  });
-
+  // Recent buy/sell tick momentum (EMA), clamped to a sane display range -
+  // this app has no real order-book depth to derive the split from.
+  const buyPercentage = Math.round(Math.min(80, Math.max(20, (ticker?.buyRatio ?? 0.5) * 100)));
   const sellPercentage = 100 - buyPercentage;
   
   // useEffect(() => {
@@ -143,6 +139,10 @@ export default function OrderPlacingPanel({ selectedSymbol, setTableRerender} : 
 
       {/* Content */}
       <div className="flex-1 overflow-y-auto p-4 space-y-4">
+        {/* Order form mode - only one mode exists, so this is a plain
+            label rather than a dropdown with nothing else to select. */}
+        <div className="text-xs text-gray-500">Regular form</div>
+
         {/* Sell / Buy Cards */}
         <div className="grid grid-cols-2 gap-3">
           {/* Sell Card */}

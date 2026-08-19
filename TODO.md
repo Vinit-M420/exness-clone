@@ -155,22 +155,33 @@ Claude — mention the item name and it has enough context to pick up.
 
 ## E. Fixes / smaller items
 
-- [ ] **E1. Fix fake buy/sell split percentage.**
-      `components/dashboard/OrderPlacingPanel.tsx` (~lines 39-44)
-      currently randomizes the sell/buy split bar via `Math.random()`
-      instead of deriving it from real spread/depth data. This is a
-      correctness bug more than a missing feature — quick win.
-- [ ] **E2. Wire up bulk actions in Open/Pending/Closed header icons.**
-      `components/dashboard/OrdersTab.tsx` renders settings/more/X icons
-      (~lines 173-181) with no behavior — add close-all/delete-all/
-      visibility-toggle.
-- [ ] **E3. "Regular form" order-mode dropdown** in
-      `OrderPlacingPanel.tsx` — investigate what alternate modes real
-      Exness offers (e.g. one-click trading) before building; may be a
-      "nice to have" vs. core.
-- [ ] **E4. Instruments panel polish** — remove/replace the unused
-      Signal-column indicator (header exists, no value renders per row),
-      and the "settings moved here" collapse banner if wanted.
+- [x] **E1. Fix fake buy/sell split percentage.** There's no real
+      order-book depth available from a trade-tick feed, so replaced
+      `Math.random()` with a non-random proxy: `usePriceStoreHook.ts` now
+      tracks a `buyRatio` EMA per symbol (buy tick → nudge up, sell tick →
+      nudge down, neutral → unchanged), and `OrderPlacingPanel.tsx` derives
+      `buyPercentage` from it (clamped 20-80 for display sanity). Added
+      `buyRatio` to the `Ticker` type.
+- [x] **E2. Wire up bulk actions in Open/Pending/Closed header icons.**
+      The `MoreVertical` icon in `OrdersTab.tsx` is now a real dropdown
+      with one contextual bulk action: "Close all open positions" /
+      "Cancel all pending orders" / "Clear closed history" depending on
+      the active tab, reusing the existing per-order close/delete
+      handlers. `Settings` and the standalone `X` are left as unwired
+      chrome — no real "settings" or "collapse" feature exists to wire
+      them to.
+- [x] **E3. "Regular form" order-mode label.** Investigated per the
+      original note: only one order-form layout exists in this app, so
+      rather than build a dropdown with a single, permanently-selected
+      option, added it as a plain text label above the Sell/Buy cards in
+      `OrderPlacingPanel.tsx` — matches the screenshot visually without
+      faking a picker that has nothing to pick.
+- [x] **E4. Instruments panel polish.** Re-checked on current code: the
+      Signal indicator in `SortableRow.tsx` (lines 94-104) already renders
+      correctly (colored up/down triangle from `ticker.signal`) — the
+      original audit finding was stale, no fix needed. Skipped the
+      "settings moved here" banner since there's no real relocated
+      settings panel to point users to; adding it would be misleading.
 
 ---
 

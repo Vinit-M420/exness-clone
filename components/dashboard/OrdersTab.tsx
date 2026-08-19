@@ -3,6 +3,12 @@
 import { useMemo, useState } from "react"
 import { Settings, MoreVertical, X, Briefcase } from "lucide-react"
 import { Button } from "@/components/ui/button"
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Order } from "@/types/orderInterface"
 import { OrderDetailsModal } from "./orderDetail"
@@ -118,6 +124,19 @@ export default function OrderTabs({orders, setOrders, loading} : OrdersTabProps)
     }
   }
 
+  const bulkActionLabel =
+    orderTab === "Open" ? "Close all open positions"
+    : orderTab === "Pending" ? "Cancel all pending orders"
+    : "Clear closed history"
+
+  const handleBulkAction = async () => {
+    const ids = filteredOrders.map((o) => o.id)
+    if (ids.length === 0) return
+
+    const action = orderTab === "Open" ? handleCloseOrder : handleDeleteOrder
+    await Promise.all(ids.map((id) => action(id).catch((err) => console.error(err))))
+  }
+
   const handleDeleteOrder = async (orderId: string) => {
     try {
       const res = await fetch(
@@ -173,9 +192,26 @@ export default function OrderTabs({orders, setOrders, loading} : OrdersTabProps)
             <Button variant="ghost" size="icon" className="h-8 w-8 text-gray-400 hover:text-gray-200 hover:bg-gray-800">
               <Settings className="h-4 w-4" />
             </Button>
-            <Button variant="ghost" size="icon" className="h-8 w-8 text-gray-400 hover:text-gray-200 hover:bg-gray-800">
-              <MoreVertical className="h-4 w-4" />
-            </Button>
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  disabled={filteredOrders.length === 0}
+                  className="h-8 w-8 text-gray-400 hover:text-gray-200 hover:bg-gray-800 disabled:opacity-40"
+                >
+                  <MoreVertical className="h-4 w-4" />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="bg-[#141829] border-gray-700 text-gray-100">
+                <DropdownMenuItem
+                  onClick={handleBulkAction}
+                  className="cursor-pointer text-xs hover:bg-gray-800 focus:bg-gray-800"
+                >
+                  {bulkActionLabel}
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
             <Button variant="ghost" size="icon" className="h-8 w-8 text-gray-400 hover:text-gray-200 hover:bg-gray-800">
               <X className="h-4 w-4" />
             </Button>

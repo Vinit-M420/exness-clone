@@ -37,14 +37,26 @@ export function usePriceStore() {
           for (const symbol in latestPerSymbol) {
             const trade = latestPerSymbol[symbol];
             const previous = prev[symbol];
+            const signal = deriveSignal(previous?.price, trade.p);
+
+            // EMA of recent tick direction (buy=1, sell=0) as a lightweight
+            // stand-in for real order-book depth, which isn't available
+            // from a trade-tick feed. Neutral ticks leave it unchanged.
+            const prevRatio = previous?.buyRatio ?? 0.5;
+            const alpha = 0.1;
+            const buyRatio =
+              signal === "buy" ? prevRatio * (1 - alpha) + alpha
+              : signal === "sell" ? prevRatio * (1 - alpha)
+              : prevRatio;
 
             updated[symbol] = {
-              symbol: symbol, 
+              symbol: symbol,
               price: trade.p,
               timestamp: trade.t,
-              signal: deriveSignal(previous?.price, trade.p),
+              signal,
               ask: deriveAsk(trade.p),
               bid: deriveBid(trade.p),
+              buyRatio,
             };
           }
 
