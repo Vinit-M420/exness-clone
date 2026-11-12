@@ -48,15 +48,25 @@ export async function connectFinnhub(
     } 
     onMessage(msg);
 
-    const candleUpdates = await handleTrades(msg.data);
-    if (candleUpdates.length > 0 && candleCallback) {
-      candleCallback(candleUpdates);
+    // Errors here (Redis down, DB error in open/closePosition, ...) would
+    // otherwise be unhandled rejections from the WS handler
+    try {
+      const candleUpdates = await handleTrades(msg.data);
+      if (candleUpdates.length > 0 && candleCallback) {
+        candleCallback(candleUpdates);
+      }
+    } catch (error) {
+      console.error("handleTrades failed:", error);
     }
 
     const latestTrade = msg.data[msg.data.length - 1];
     set(latestTrade.s, latestTrade.p);
     // console.log("latestTrade:", latestTrade)
-    await priceWatcher(latestTrade.s, latestTrade.p);
+    try {
+      await priceWatcher(latestTrade.s, latestTrade.p);
+    } catch (error) {
+      console.error(`priceWatcher failed for ${latestTrade.s}:`, error);
+    }
   };
 
   finnhubSocket.onclose = () => {
