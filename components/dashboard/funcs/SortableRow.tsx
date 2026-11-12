@@ -7,6 +7,7 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
          AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,  AlertDialogTrigger, } from "@/components/ui/alert-dialog"
 import { Button } from "@/components/ui/button";
 import { Ticker } from "@/types/tickerType";
+import { formatPrice } from "./deriveAskBid";
 
 interface SortableRowProps {
   item: SymbolType
@@ -106,14 +107,14 @@ export function SortableRow({ item, ticker, onDelete, setSelectedSymbol }: Sorta
       {/* Bid */}
       <TableCell className="py-2 w-1/3">
         <div className={`flex items-center justify-end text-sm font-mono ${item.signal ? 'text-green-400' : 'text-red-400'} ${item.signal ? 'bg-green-500/10' : 'bg-red-500/10'} px-2 rounded`}>
-          {ticker?.bid?.toFixed(2) ?? "-"}
+          {ticker?.bid !== undefined ? formatPrice(ticker.bid) : "-"}
         </div>
       </TableCell>
 
       {/* Ask */}
       <TableCell className="py-2 w-1/6">
         <div className="flex items-center justify-end text-sm font-mono text-gray-400">
-          {ticker?.ask?.toFixed(2) ?? "-"}
+          {ticker?.ask !== undefined ? formatPrice(ticker.ask) : "-"}
         </div>
       </TableCell>
     </TableRow>

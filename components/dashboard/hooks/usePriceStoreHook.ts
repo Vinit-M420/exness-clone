@@ -68,8 +68,8 @@ export function usePriceStore() {
                 price: trade.p,
                 timestamp: trade.t,
                 signal,
-                ask: deriveAsk(trade.p),
-                bid: deriveBid(trade.p),
+                ask: deriveAsk(trade.p, symbol),
+                bid: deriveBid(trade.p, symbol),
                 buyRatio,
               };
             }
