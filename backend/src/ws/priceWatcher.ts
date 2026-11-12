@@ -44,17 +44,19 @@ export async function priceWatcher(symbol: string, currentPrice: number) {
 
   // ===== STOP LOSS & TAKE PROFIT FOR BUY POSITIONS =====
   // BUY Stop Loss: Triggers when price drops to or below SL
+  // Get all buy SLs where SL >= currentPrice
   const buySLOrders = await redisClient.zrangebyscore(
     `sl:${symbol}:buy`,
-    "-inf",
-    currentPrice
+    currentPrice,
+    "+inf"
   );
 
   // BUY Take Profit: Triggers when price rises to or above TP
+  // Get all buy TPs where TP <= currentPrice
   const buyTPOrders = await redisClient.zrangebyscore(
     `tp:${symbol}:buy`,
-    currentPrice,
-    "+inf"
+    "-inf",
+    currentPrice
   );
 
   // Close buy positions that hit SL or TP
@@ -80,17 +82,19 @@ export async function priceWatcher(symbol: string, currentPrice: number) {
 
   // ===== STOP LOSS & TAKE PROFIT FOR SELL POSITIONS =====
   // SELL Stop Loss: Triggers when price rises to or above SL
+  // Get all sell SLs where SL <= currentPrice
   const sellSLOrders = await redisClient.zrangebyscore(
     `sl:${symbol}:sell`,
-    currentPrice,
-    "+inf"
+    "-inf",
+    currentPrice
   );
 
   // SELL Take Profit: Triggers when price drops to or below TP
+  // Get all sell TPs where TP >= currentPrice
   const sellTPOrders = await redisClient.zrangebyscore(
     `tp:${symbol}:sell`,
-    "-inf",
-    currentPrice
+    currentPrice,
+    "+inf"
   );
 
   // Close sell positions that hit SL or TP
