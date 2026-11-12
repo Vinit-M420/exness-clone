@@ -1,6 +1,7 @@
 import { Inter } from "next/font/google";
 import type { Metadata } from "next";
 import "./globals.css";
+import { Toaster } from "@/components/ui/sonner";
 import dotenv from "dotenv";
 dotenv.config();
 
@@ -25,6 +26,7 @@ export default function RootLayout({
     <html lang="en" className="dark">
       <body className={`min-h-screen bg-[#050812] text-[#E8E9ED] ${inter.className}`}>
         {children}
+        <Toaster position="bottom-right" richColors closeButton />
       </body>
     </html>
   );

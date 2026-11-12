@@ -1,5 +1,5 @@
 'use client'
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import Navbar from '@/components/navbar'
 import InstrumentsPanel from '@/components/dashboard/InstrumentsPanel'
 import OrderTabs from '@/components/dashboard/OrdersTab'
@@ -8,6 +8,11 @@ import OrderPlacingPanel from '@/components/dashboard/OrderPlacingPanel'
 // import { Ticker } from '@/types/tickerType';
 import { Order } from "@/types/orderInterface"
 import CandleChart from '@/components/dashboard/CandleChart';
+import { diffOrders, showOrderEventToast } from '@/components/dashboard/funcs/orderStatusToasts';
+
+// Limit fills and SL/TP closes happen server-side with no push to the client,
+// so orders + balance are polled while the tab is visible to pick them up
+const ORDER_POLL_MS = 3000;
 
 export default function DashboardPage() {
   // const [tickers, setTickers] = useState<Record<string, Ticker>>({});
@@ -44,24 +49,23 @@ export default function DashboardPage() {
     localStorage.setItem("openSymbols", JSON.stringify(openSymbols));
   }, [openSymbols]);
 
-  useEffect(() => {
+  const fetchWallet = useCallback(async () => {
     if (!jwtToken) return;
-
-    const fetchWallet = async () => {
-      try {
-        const res = await fetch(`${process.env.NEXT_PUBLIC_API_BASE}/api/v1/wallet/get`, {
-          headers: { Authorization: `Bearer ${jwtToken}` },
-        });
-        if (!res.ok) return;
-        const data = await res.json();
-        if (data.response) setWalletBalance(data.response);
-      } catch (err) {
-        console.error("Failed to fetch wallet balance", err);
-      }
-    };
-
-    fetchWallet();
+    try {
+      const res = await fetch(`${process.env.NEXT_PUBLIC_API_BASE}/api/v1/wallet/get`, {
+        headers: { Authorization: `Bearer ${jwtToken}` },
+      });
+      if (!res.ok) return;
+      const data = await res.json();
+      if (data.response) setWalletBalance(data.response);
+    } catch (err) {
+      console.error("Failed to fetch wallet balance", err);
+    }
   }, [jwtToken]);
+
+  useEffect(() => {
+    fetchWallet();
+  }, [fetchWallet]);
 
   const handleCloseTab = (symbol: string) => {
     setOpenSymbols((prev) => {
@@ -73,51 +77,68 @@ export default function DashboardPage() {
     });
   };
 
+  // Status of every order as of the last fetch - diffed against the next fetch
+  // to toast limit fills / SL / TP. null until the first load, so existing
+  // orders don't toast on page open.
+  const lastStatuses = useRef<Map<string, Order["status"]> | null>(null);
+
+  // silent = background poll: no loading spinner, keep current orders on error
+  const fetchOrders = useCallback(async (silent = false) => {
+    if (!jwtToken) return
+    try {
+      if (!silent) setLoading(true)
+
+      const res = await fetch(
+        `${process.env.NEXT_PUBLIC_API_BASE}/api/v1/order/all`,
+        {
+          headers: {
+            Authorization: `Bearer ${jwtToken}`,
+            "Content-Type": "application/json",
+          },
+        }
+      )
+
+      if (!res.ok) {
+        // console.error("Failed to fetch orders")
+        if (!silent) setOrders([])
+        return
+      }
+
+      const data = await res.json()
+
+      // Handle both cases: empty array or orders array
+      const next: Order[] = Array.isArray(data.orders) ? data.orders
+        : Array.isArray(data) ? data
+        : []
+
+      if (lastStatuses.current) {
+        diffOrders(lastStatuses.current, next).forEach(showOrderEventToast)
+      }
+      lastStatuses.current = new Map(next.map((o) => [o.id, o.status]))
+
+      setOrders(next)
+      setTableRerender(false);
+    } catch (err) {
+      console.error(err)
+      if (!silent) setOrders([])
+    } finally {
+      if (!silent) setLoading(false)
+    }
+  }, [jwtToken])
+
+  useEffect(() => {
+    fetchOrders()
+  }, [fetchOrders, tableRerender])
+
   useEffect(() => {
     if (!jwtToken) return
-
-    const fetchOrders = async () => {
-      try {
-        setLoading(true)
-
-        const res = await fetch(
-          `${process.env.NEXT_PUBLIC_API_BASE}/api/v1/order/all`,
-          {
-            headers: {
-              Authorization: `Bearer ${jwtToken}`,
-              "Content-Type": "application/json",
-            },
-          }
-        )
-        
-        if (!res.ok) {
-          // console.error("Failed to fetch orders")
-          setOrders([])
-          return
-        }
-
-        const data = await res.json()
-        console.log("res: ", data)
-        
-        // Handle both cases: empty array or orders array
-        if (Array.isArray(data.orders)) {
-          setOrders(data.orders)
-        } else if (Array.isArray(data)) {
-          setOrders(data)
-        } else {
-          setOrders([])
-        }
-        if (setTableRerender) setTableRerender(false);
-      } catch (err) {
-        console.error(err)
-        setOrders([])
-      } finally {
-        setLoading(false)
-      }
-    }
-
-    fetchOrders()  
-  }, [jwtToken, tableRerender])
+    const id = setInterval(() => {
+      if (document.visibilityState !== "visible") return
+      fetchOrders(true)
+      fetchWallet()
+    }, ORDER_POLL_MS)
+    return () => clearInterval(id)
+  }, [jwtToken, fetchOrders, fetchWallet])
 
 
   return (

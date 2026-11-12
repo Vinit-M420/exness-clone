@@ -7,6 +7,15 @@ import { Order } from '@/types/orderInterface'
 import { TPSLInput } from '../TPSLinput'
 import { orders } from '@/backend/src/db/schema'
 import { usePriceStore } from './hooks/usePriceStoreHook'
+import { toast } from 'sonner'
+import { displaySymbol } from './funcs/orderStatusToasts'
+
+// Turns a failed order response into a readable toast description
+function orderErrorText(errorData: { message?: string; requiredMargin?: number }) {
+  if (errorData?.requiredMargin !== undefined)
+    return `${errorData.message} - requires $${Number(errorData.requiredMargin).toFixed(2)} margin`
+  return errorData?.message ?? "Something went wrong"
+}
 
 type OrderPanelProps = {
   // tickers: Record<string, Ticker>,
@@ -70,6 +79,7 @@ export default function OrderPlacingPanel({ selectedSymbol, setTableRerender} : 
       if (!res.ok) {
         const errorData = await res.json();
         console.error("Error placing order:", errorData);
+        toast.error("Order rejected", { description: orderErrorText(errorData) });
         return;
       }
 
@@ -78,11 +88,15 @@ export default function OrderPlacingPanel({ selectedSymbol, setTableRerender} : 
       // if (data.order) {
       //   setOrders(prevOrders => [...prevOrders, data.order]);
       // }
+      toast.success(res.status === 200 ? "Order already placed" : "Market order placed", {
+        description: `${side === 'BUY' ? 'Buy' : 'Sell'} ${volume} ${displaySymbol(selectedSymbol ?? '')}`,
+      });
       setTableRerender(true);
       console.log("Orders: ", orders);
-      
+
     } catch (e) {
       console.error("Error:", e);
+      toast.error("Order failed", { description: "Network error - please try again" });
     }
   }
 
@@ -108,6 +122,7 @@ export default function OrderPlacingPanel({ selectedSymbol, setTableRerender} : 
       if (!res.ok) {
         const errorData = await res.json();
         console.error("Error placing limit order:", errorData);
+        toast.error("Limit order rejected", { description: orderErrorText(errorData) });
         return;
       }
 
@@ -116,10 +131,14 @@ export default function OrderPlacingPanel({ selectedSymbol, setTableRerender} : 
       // if (data.order) {
       //   setOrders(prevOrders => [...prevOrders, data.order]);
       // }
+      toast.success(res.status === 200 ? "Order already placed" : "Limit order placed", {
+        description: `${side === 'BUY' ? 'Buy' : 'Sell'} ${volume} ${displaySymbol(selectedSymbol ?? '')} @ ${triggerPrice} - fills when price reaches it`,
+      });
       console.log("Orders: ", orders);
       setTableRerender(true);
     } catch (e) {
       console.error("Error:", e);
+      toast.error("Limit order failed", { description: "Network error - please try again" });
     }
   }
 
