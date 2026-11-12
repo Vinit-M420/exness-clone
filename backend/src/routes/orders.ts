@@ -18,6 +18,24 @@ class InsufficientBalanceError extends Error {
   constructor() { super("Insufficient balance"); }
 }
 
+// Optional Idempotency-Key header -> orders.client_order_id
+function getClientOrderId(header: string | undefined) {
+  const key = header?.trim();
+  return key ? key : null;
+}
+
+function findOrderByClientOrderId(userId: string, clientOrderId: string) {
+  return db.select().from(orders)
+    .where(and(eq(orders.userId, userId), eq(orders.clientOrderId, clientOrderId)))
+    .then(res => res[0]);
+}
+
+// Postgres unique_violation (drizzle wraps the driver error in `cause`)
+function isUniqueViolation(e: unknown) {
+  const err = e as { code?: string; cause?: { code?: string } };
+  return err?.code === "23505" || err?.cause?.code === "23505";
+}
+
 orderRouter.use("/*",
   jwt({ secret: process.env.JWT_SECRET! , alg: "HS256",}),
 )
@@ -80,6 +98,15 @@ orderRouter.post("/market", async (c) => {
     );
   }
   const { symbol, side, lotSize, stopLoss, takeProfit } = parsed.data;
+
+  // Retry / double-submit with the same key -> return the existing order
+  const clientOrderId = getClientOrderId(c.req.header("Idempotency-Key"));
+  if (clientOrderId) {
+    const existing = await findOrderByClientOrderId(userId, clientOrderId);
+    if (existing)
+      return c.json({ message: "Market order already placed", order: existing }, HttpStatusCode.Ok);
+  }
+
   const price = get(symbol);
   if (!price) {
     return c.json(
@@ -124,6 +151,7 @@ orderRouter.post("/market", async (c) => {
         marginUsed: requiredMargin.toString(),
         stopLoss: stopLoss?.toString(),
         takeProfit: takeProfit?.toString(),
+        clientOrderId,
         createdAt: new Date(),
       }).returning({ id: orders.id });
 
@@ -168,6 +196,12 @@ orderRouter.post("/market", async (c) => {
     if (e instanceof InsufficientBalanceError) {
       return c.json({ message: "Insufficient balance", balance, requiredMargin },
         HttpStatusCode.UnprocessableEntity);
+    }
+    // Concurrent request with the same key won the insert -> return that order
+    if (clientOrderId && isUniqueViolation(e)) {
+      const existing = await findOrderByClientOrderId(userId, clientOrderId);
+      if (existing)
+        return c.json({ message: "Market order already placed", order: existing }, HttpStatusCode.Ok);
     }
     console.error("Transaction error:", e);
     return c.json({ 
@@ -276,6 +310,15 @@ orderRouter.post("/limit", async (c) => {
       HttpStatusCode.BadRequest);
   }
   const { symbol, side, lotSize, triggerPrice, stopLoss, takeProfit } = parsed.data;
+
+  // Retry / double-submit with the same key -> return the existing order
+  const clientOrderId = getClientOrderId(c.req.header("Idempotency-Key"));
+  if (clientOrderId) {
+    const existing = await findOrderByClientOrderId(userId, clientOrderId);
+    if (existing)
+      return c.json({ message: "Limit order already filed", order: existing }, HttpStatusCode.Ok);
+  }
+
   const price = get(symbol);
 
   if (!price) 
@@ -298,6 +341,7 @@ orderRouter.post("/limit", async (c) => {
       openedAt: null,
       stopLoss : stopLoss?.toString() ?? null,
       takeProfit: takeProfit?.toString()?? null,
+      clientOrderId,
       createdAt: new Date(),
     }).returning({ id: orders.id });
 
@@ -319,6 +363,12 @@ orderRouter.post("/limit", async (c) => {
   return c.json({ message: "Limit order filed" }, HttpStatusCode.Created);
   }
   catch(e){
+    // Concurrent request with the same key won the insert -> return that order
+    if (clientOrderId && isUniqueViolation(e)) {
+      const existing = await findOrderByClientOrderId(userId, clientOrderId);
+      if (existing)
+        return c.json({ message: "Limit order already filed", order: existing }, HttpStatusCode.Ok);
+    }
     return c.json({ message: "Limit order request failed", error: e }, HttpStatusCode.BadRequest);
   }
 })
