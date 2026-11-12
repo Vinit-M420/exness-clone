@@ -7,6 +7,7 @@ import { Order } from '@/types/orderInterface'
 import { TPSLInput } from '../TPSLinput'
 import { orders } from '@/backend/src/db/schema'
 import { usePriceStore } from './hooks/usePriceStoreHook'
+import { formatPrice } from './funcs/deriveAskBid'
 
 type OrderPanelProps = {
   // tickers: Record<string, Ticker>,
@@ -174,7 +175,7 @@ export default function OrderPlacingPanel({ selectedSymbol, setTableRerender} : 
             <div className="text-xs text-red-400 mb-1">Sell</div>
             <div className={`font-bold text-red-400 ${selectedSymbol ? getPriceClass(sellPrice) : "text-2xl"}`}
             >
-              {selectedSymbol ? sellPrice.toFixed(2) : "-"}
+              {selectedSymbol ? formatPrice(sellPrice) : "-"}
             </div>
           </div>
 
@@ -183,7 +184,7 @@ export default function OrderPlacingPanel({ selectedSymbol, setTableRerender} : 
             <div className="text-xs text-blue-400 mb-1">Buy</div>
             <div className={`font-bold text-blue-400 ${selectedSymbol ? getPriceClass(buyPrice) : "text-2xl"}`}
             >
-              {selectedSymbol ? buyPrice.toFixed(2) : "-"}
+              {selectedSymbol ? formatPrice(buyPrice) : "-"}
             </div>
           </div>
         </div>
@@ -203,7 +204,7 @@ export default function OrderPlacingPanel({ selectedSymbol, setTableRerender} : 
             />
           </div>
           <div className="absolute mt-0.5 top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 bg-[#1a1d2e] px-2 py-0.5 rounded text-xs text-gray-400 border border-gray-700">
-            {spread.toFixed(2)}
+            {formatPrice(spread, buyPrice)}
           </div>
           <div className="flex justify-between mt-1">
             <span className="text-xs text-red-400" suppressHydrationWarning>{sellPercentage}%</span>
