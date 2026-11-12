@@ -1,5 +1,5 @@
 import { db } from "../db";
-import { eq, and } from "drizzle-orm";
+import { eq, and, sql } from "drizzle-orm";
 import { orders, wallet_transactions, wallets } from "../db/schema";
 
 // ========== CLOSE POSITION (SL/TP Hit) ==========
@@ -49,18 +49,6 @@ export async function closePosition(
 
   // Execute close in transaction
   await db.transaction(async (tx) => {
-    // Get wallet
-    const wallet = await tx
-      .select({ balance: wallets.balance })
-      .from(wallets)
-      .where(eq(wallets.id, order.walletId))
-      .then((res) => res[0]);
-
-    if (!wallet) {
-      console.log(`[ClosePosition] ❌ Wallet not found`);
-      return;
-    }
-
     // Update order status to closed
     const updated = await tx
       .update(orders)
@@ -78,9 +66,21 @@ export async function closePosition(
       return;
     }
 
+    // Atomic credit (margin + PnL) so a concurrent wallet write can't be lost
+    const [credited] = await tx
+      .update(wallets)
+      .set({ balance: sql`${wallets.balance} + ${finalAmount}` })
+      .where(eq(wallets.id, order.walletId))
+      .returning({ balance: wallets.balance });
+
+    if (!credited) {
+      console.log(`[ClosePosition] ❌ Wallet not found`);
+      throw new Error("Wallet not found");
+    }
+
     // Record wallet transaction - release margin + PnL
-    const balanceBefore = wallet.balance;
-    const balanceAfter = Number(balanceBefore) + finalAmount;
+    const balanceAfter = Number(credited.balance);
+    const balanceBefore = balanceAfter - finalAmount;
 
     await tx.insert(wallet_transactions).values({
       walletId: order.walletId,
@@ -90,12 +90,6 @@ export async function closePosition(
       balanceAfter: balanceAfter.toString(),
       referenceId: order.id,
     });
-
-    // Update wallet balance
-    await tx
-      .update(wallets)
-      .set({ balance: balanceAfter.toString() })
-      .where(eq(wallets.id, order.walletId));
 
     console.log(`[ClosePosition] ✅✅✅ Order ${orderId} closed! PnL: ${pnl}, New Balance: ${balanceAfter}`);
   });

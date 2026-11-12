@@ -2,7 +2,7 @@ import { db } from "../db";
 import { Hono } from "hono";
 import { jwt } from "hono/jwt";
 import { get } from "../ws/priceStore";
-import { eq, and } from "drizzle-orm"
+import { eq, and, gte, sql } from "drizzle-orm"
 import { HttpStatusCode } from "../schemas/http_response";
 import { orders, wallet_transactions, wallets } from "../db/schema";
 import { AddLimitsSchema, LimitOrderRequestSchema, MarketOrderRequestSchema } from "../schemas/market_order";
@@ -13,6 +13,10 @@ import { redisClient } from "../redis/client";
 import { checker } from "../funcs/checker";
 
 const orderRouter = new Hono();
+
+class InsufficientBalanceError extends Error {
+  constructor() { super("Insufficient balance"); }
+}
 
 orderRouter.use("/*",
   jwt({ secret: process.env.JWT_SECRET! , alg: "HS256",}),
@@ -91,13 +95,20 @@ orderRouter.post("/market", async (c) => {
   const positionVal = price * lotSize;
   const requiredMargin = positionVal / leverage
 
-  if (Number(balance) < requiredMargin) {
-    return c.json({ message: "Insufficient balance", balance, requiredMargin }, 
-      HttpStatusCode.UnprocessableEntity);
-  }
-
   try {
   await db.transaction(async (tx) => {
+    // Atomic conditional debit: only succeeds if the balance still covers the
+    // margin at write time, so concurrent orders can't overdraw the wallet
+    const [debited] = await tx.update(wallets)
+      .set({ balance: sql`${wallets.balance} - ${requiredMargin}` })
+      .where(and(
+        eq(wallets.id, walletId),
+        gte(wallets.balance, requiredMargin.toString())
+      ))
+      .returning({ balance: wallets.balance });
+
+    if (!debited) throw new InsufficientBalanceError();
+
     const insertedOrders = await tx
       .insert(orders)
       .values({
@@ -120,8 +131,8 @@ orderRouter.post("/market", async (c) => {
 
     if (!insertedOrder) throw new Error("Order insertion failed");   
     
-    const balanceBefore = Number(balance);
-    const balanceAfter = balanceBefore - requiredMargin;  
+    const balanceAfter = Number(debited.balance);
+    const balanceBefore = balanceAfter + requiredMargin;
     
     await tx.insert(wallet_transactions)
       .values({ 
@@ -133,9 +144,6 @@ orderRouter.post("/market", async (c) => {
         referenceId: insertedOrder.id
       });
 
-    await tx.update(wallets)
-      .set({ balance: balanceAfter.toString() })
-      .where(eq(wallets.id, walletId));
       await redisClient.sadd("active:symbols", symbol);
       
       if (stopLoss) {
@@ -157,6 +165,10 @@ orderRouter.post("/market", async (c) => {
     message: "Market order placed"}, HttpStatusCode.Created);
 
 } catch(e) {
+    if (e instanceof InsufficientBalanceError) {
+      return c.json({ message: "Insufficient balance", balance, requiredMargin },
+        HttpStatusCode.UnprocessableEntity);
+    }
     console.error("Transaction error:", e);
     return c.json({ 
       message: "Error in creating the order", 
@@ -214,17 +226,18 @@ orderRouter.put("/exit/:id", async (c) => {
     // 0 rows = order not open anymore (already closed) -> don't credit twice
     if (closedOrder.length === 0) throw new Error("Order is not open");
 
-    const walletRow = await tx
-      .select({ balance: wallets.balance })
-      .from(wallets)
-      .where(eq(wallets.id, walletId))
-      .then(r => r[0]);
-
-    if (!walletRow) throw new Error("Wallet not found");
-
-    const balanceBefore = Number(walletRow.balance);
     const releaseAmount = Number(isOrderPresent.marginUsed) + pnl;
-    const balanceAfter = balanceBefore + releaseAmount; 
+
+    // Atomic credit so a concurrent wallet write can't be lost
+    const [credited] = await tx.update(wallets)
+      .set({ balance: sql`${wallets.balance} + ${releaseAmount}` })
+      .where(eq(wallets.id, walletId))
+      .returning({ balance: wallets.balance });
+
+    if (!credited) throw new Error("Wallet not found");
+
+    const balanceAfter = Number(credited.balance);
+    const balanceBefore = balanceAfter - releaseAmount;
     
     await tx.insert(wallet_transactions)
         .values({ walletId,
@@ -233,10 +246,6 @@ orderRouter.put("/exit/:id", async (c) => {
         balanceBefore: balanceBefore.toString(), 
         balanceAfter: balanceAfter.toString(), 
         referenceId: orderId })   
-    
-    await tx.update(wallets)
-          .set({ balance: balanceAfter.toString() })
-         .where(eq(wallets.id, walletId));
   
   });
     // Order is closed now, drop its SL/TP so priceWatcher doesn't close it again
