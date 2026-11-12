@@ -185,8 +185,12 @@ orderRouter.put("/exit/:id", async (c) => {
   // return c.json({ userId, walletId, balance }, HttpStatusCode.Ok);
 
   const orderId = c.req.param("id");
-  const isOrderPresent = await db.select().from(orders).where(eq(orders.id, orderId)).then(res => res[0]);
+  const isOrderPresent = await db.select().from(orders)
+    .where(and(eq(orders.id, orderId), eq(orders.userId, userId)))
+    .then(res => res[0]);
   if (!isOrderPresent) return c.json({ message: "Order not found" }, HttpStatusCode.BadRequest);
+  if (isOrderPresent.status !== "open")
+    return c.json({ message: "Only open orders can be closed" }, HttpStatusCode.BadRequest);
 
   const price = get(isOrderPresent.symbol);
  
@@ -216,10 +220,12 @@ orderRouter.put("/exit/:id", async (c) => {
               eq(orders.userId, userId),
               eq(orders.status, "open")
             )
-        );
+        )
+      .returning({ id: orders.id });
 
-    if (!closedOrder) throw new Error("Order closing failed");   
-    
+    // 0 rows = order not open anymore (already closed) -> don't credit twice
+    if (closedOrder.length === 0) throw new Error("Order is not open");
+
     const releaseAmount = Number(isOrderPresent.marginUsed) + pnl;
 
     // Atomic credit so a concurrent wallet write can't be lost
@@ -242,6 +248,10 @@ orderRouter.put("/exit/:id", async (c) => {
         referenceId: orderId })   
   
   });
+    // Order is closed now, drop its SL/TP so priceWatcher doesn't close it again
+    await redisClient.zrem(`sl:${isOrderPresent.symbol}:${isOrderPresent.side}`, orderId);
+    await redisClient.zrem(`tp:${isOrderPresent.symbol}:${isOrderPresent.side}`, orderId);
+
     const shouldUnsub = removeSymbols(isOrderPresent.symbol);
     if (shouldUnsub) unsubscribeSymbol(isOrderPresent.symbol);
     
