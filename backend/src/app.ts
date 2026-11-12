@@ -12,7 +12,7 @@ const app = new Hono();
 app.use("*", cors({
   origin: "http://localhost:3000",
   allowMethods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
-  allowHeaders: ["Content-Type", "Authorization"],
+  allowHeaders: ["Content-Type", "Authorization", "Idempotency-Key"],
 }));
 
 app.get('/', (c) => c.text('Exness Clone'));

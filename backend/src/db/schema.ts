@@ -73,4 +73,8 @@ export const orders = pgTable("orders", {
   openedAt: timestamp("opened_at").defaultNow(),
   closedAt: timestamp("closed_at"),
   createdAt: timestamp("created_at").defaultNow(),
-}) 
+  // Client-supplied Idempotency-Key; nullable so old clients still work
+  // (Postgres allows multiple NULLs under a unique constraint)
+  clientOrderId: text("client_order_id"),
+}, (table) => [ unique("orders_user_client_order_id_unique").on(table.userId, table.clientOrderId) ]
+)

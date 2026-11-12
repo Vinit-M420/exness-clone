@@ -1,5 +1,5 @@
 'use client'
-import { useState } from 'react'
+import { useRef, useState } from 'react'
 import { X, Plus, Minus, ArrowBigUp, ArrowBigDown } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { InputGroup, InputGroupAddon, InputGroupInput } from '../ui/input-group'
@@ -40,17 +40,23 @@ export default function OrderPlacingPanel({ selectedSymbol, setTableRerender} : 
   // this app has no real order-book depth to derive the split from.
   const buyPercentage = Math.round(Math.min(80, Math.max(20, (ticker?.buyRatio ?? 0.5) * 100)));
   const sellPercentage = 100 - buyPercentage;
+
+  // Blocks double-clicks while an order request is in flight. The ref guards
+  // synchronously (state updates aren't visible until the next render).
+  const [isSubmitting, setIsSubmitting] = useState(false)
+  const submittingRef = useRef(false)
   
   // useEffect(() => {
   // }, [orders])
   
-  async function placeMarketOrder(side: 'BUY' | 'SELL') {
+  async function placeMarketOrder(side: 'BUY' | 'SELL', idempotencyKey: string) {
     try {
       const res = await fetch(`${process.env.NEXT_PUBLIC_API_BASE}/api/v1/order/market`, {
         method: "POST",
         headers: { 
           Authorization: `Bearer ${jwtToken}`, 
-          'Content-Type': "application/json"
+          'Content-Type': "application/json",
+          'Idempotency-Key': idempotencyKey
         },
         body: JSON.stringify({
           symbol: selectedSymbol,
@@ -80,13 +86,14 @@ export default function OrderPlacingPanel({ selectedSymbol, setTableRerender} : 
     }
   }
 
-  async function placeLimitOrder(side: 'BUY' | 'SELL') {
+  async function placeLimitOrder(side: 'BUY' | 'SELL', idempotencyKey: string) {
     try {
       const res = await fetch(`${process.env.NEXT_PUBLIC_API_BASE}/api/v1/order/limit`, {
         method: "POST",
         headers: { 
           Authorization: `Bearer ${jwtToken}`, 
-          'Content-Type': "application/json"
+          'Content-Type': "application/json",
+          'Idempotency-Key': idempotencyKey
         },
         body: JSON.stringify({
           symbol: selectedSymbol,
@@ -113,6 +120,23 @@ export default function OrderPlacingPanel({ selectedSymbol, setTableRerender} : 
       setTableRerender(true);
     } catch (e) {
       console.error("Error:", e);
+    }
+  }
+
+  async function submitOrder(side: 'BUY' | 'SELL') {
+    if (submittingRef.current) return;
+    submittingRef.current = true;
+    setIsSubmitting(true);
+
+    // One key per order attempt - the backend returns the existing order
+    // instead of creating a duplicate if the same key arrives twice
+    const idempotencyKey = crypto.randomUUID();
+    try {
+      if (orderType === 'Market') await placeMarketOrder(side, idempotencyKey);
+      else await placeLimitOrder(side, idempotencyKey);
+    } finally {
+      submittingRef.current = false;
+      setIsSubmitting(false);
     }
   }
 
@@ -260,20 +284,16 @@ export default function OrderPlacingPanel({ selectedSymbol, setTableRerender} : 
       {/* Action Buttons - Buy and Sell */}
       <div className="border-t border-gray-800 p-4 grid grid-cols-2 gap-3">
         <Button 
-          onClick={() => {
-            if (orderType === 'Market') placeMarketOrder('SELL');
-            else placeLimitOrder("SELL");
-          }}
+          onClick={() => submitOrder('SELL')}
+          disabled={isSubmitting}
           className="h-12 bg-linear-to-br from-red-600 to-red-700 hover:from-red-700 hover:to-red-800 text-white font-semibold"
         >
           Sell
           <ArrowBigDown className="h-4 w-4 fill-white" />
         </Button>
         <Button 
-          onClick={() => {
-            if (orderType === 'Market') placeMarketOrder('BUY');
-            else placeLimitOrder("BUY");
-          }}
+          onClick={() => submitOrder('BUY')}
+          disabled={isSubmitting}
           className="h-12 bg-linear-to-br from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 text-white font-semibold"
         >
           Buy
