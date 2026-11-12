@@ -36,14 +36,15 @@ export async function openPosition(
     return;
   }
 
-  // Validate trigger price condition
+  // Validate trigger price condition (must match priceWatcher's ranges):
+  // buy limit fills once price drops to/below trigger, sell limit once it rises to/above
   const triggerPrice = Number(order.triggerPrice);
-  if (side === "buy" && currentPrice < triggerPrice) {
-    console.log(`[OpenPosition] ❌ BUY price not reached: ${currentPrice} < ${triggerPrice}`);
+  if (side === "buy" && currentPrice > triggerPrice) {
+    console.log(`[OpenPosition] ❌ BUY price not reached: ${currentPrice} > ${triggerPrice}`);
     return;
   }
-  if (side === "sell" && currentPrice > triggerPrice) {
-    console.log(`[OpenPosition] ❌ SELL price not reached: ${currentPrice} > ${triggerPrice}`);
+  if (side === "sell" && currentPrice < triggerPrice) {
+    console.log(`[OpenPosition] ❌ SELL price not reached: ${currentPrice} < ${triggerPrice}`);
     return;
   }
 
