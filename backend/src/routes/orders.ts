@@ -173,8 +173,12 @@ orderRouter.put("/exit/:id", async (c) => {
   // return c.json({ userId, walletId, balance }, HttpStatusCode.Ok);
 
   const orderId = c.req.param("id");
-  const isOrderPresent = await db.select().from(orders).where(eq(orders.id, orderId)).then(res => res[0]);
+  const isOrderPresent = await db.select().from(orders)
+    .where(and(eq(orders.id, orderId), eq(orders.userId, userId)))
+    .then(res => res[0]);
   if (!isOrderPresent) return c.json({ message: "Order not found" }, HttpStatusCode.BadRequest);
+  if (isOrderPresent.status !== "open")
+    return c.json({ message: "Only open orders can be closed" }, HttpStatusCode.BadRequest);
 
   const price = get(isOrderPresent.symbol);
  
@@ -204,17 +208,21 @@ orderRouter.put("/exit/:id", async (c) => {
               eq(orders.userId, userId),
               eq(orders.status, "open")
             )
-        );
+        )
+      .returning({ id: orders.id });
 
-    if (!closedOrder) throw new Error("Order closing failed");   
-    
+    // 0 rows = order not open anymore (already closed) -> don't credit twice
+    if (closedOrder.length === 0) throw new Error("Order is not open");
+
     const walletRow = await tx
       .select({ balance: wallets.balance })
       .from(wallets)
       .where(eq(wallets.id, walletId))
       .then(r => r[0]);
 
-    const balanceBefore = Number(walletRow);
+    if (!walletRow) throw new Error("Wallet not found");
+
+    const balanceBefore = Number(walletRow.balance);
     const releaseAmount = Number(isOrderPresent.marginUsed) + pnl;
     const balanceAfter = balanceBefore + releaseAmount; 
     
@@ -231,6 +239,10 @@ orderRouter.put("/exit/:id", async (c) => {
          .where(eq(wallets.id, walletId));
   
   });
+    // Order is closed now, drop its SL/TP so priceWatcher doesn't close it again
+    await redisClient.zrem(`sl:${isOrderPresent.symbol}:${isOrderPresent.side}`, orderId);
+    await redisClient.zrem(`tp:${isOrderPresent.symbol}:${isOrderPresent.side}`, orderId);
+
     const shouldUnsub = removeSymbols(isOrderPresent.symbol);
     if (shouldUnsub) unsubscribeSymbol(isOrderPresent.symbol);
     
