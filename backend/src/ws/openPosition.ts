@@ -1,6 +1,7 @@
 import { db } from "../db";
 import { eq, and, gte, sql } from "drizzle-orm";
 import { orders, wallet_transactions, wallets } from "../db/schema";
+import { redisClient } from "../redis/client";
 
 // ========== OPEN POSITION (Trigger Price Hit) ==========
 export async function openPosition(
@@ -55,6 +56,7 @@ export async function openPosition(
   console.log(`[OpenPosition] Position value: ${positionVal}, Required margin: ${requiredMargin}`);
 
   // Execute order in transaction
+  let opened = false;
   await db.transaction(async (tx) => {
     // Update order status from pending to open
     const updated = await tx
@@ -103,5 +105,14 @@ export async function openPosition(
     });
 
     console.log(`[OpenPosition] ✅✅✅ Order ${orderId} opened! Entry: ${currentPrice}, Margin: ${requiredMargin}`);
+    opened = true;
   });
+
+  // SL/TP only start watching once the position is actually open
+  if (opened) {
+    if (order.stopLoss)
+      await redisClient.zadd(`sl:${symbol}:${order.side}`, Number(order.stopLoss), orderId);
+    if (order.takeProfit)
+      await redisClient.zadd(`tp:${symbol}:${order.side}`, Number(order.takeProfit), orderId);
+  }
 }

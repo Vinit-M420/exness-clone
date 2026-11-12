@@ -31,10 +31,11 @@ export async function rebuildTriggers() {
     if (order.status === "pending" && order.orderType === "limit" && order.triggerPrice) {
       await redisClient.zadd(`trigger:${order.symbol}:${order.side}`, Number(order.triggerPrice), order.id);
     }
-    if (order.stopLoss) {
+    // SL/TP only watch open positions; pending orders register theirs on fill
+    if (order.status === "open" && order.stopLoss) {
       await redisClient.zadd(`sl:${order.symbol}:${order.side}`, Number(order.stopLoss), order.id);
     }
-    if (order.takeProfit) {
+    if (order.status === "open" && order.takeProfit) {
       await redisClient.zadd(`tp:${order.symbol}:${order.side}`, Number(order.takeProfit), order.id);
     }
   }

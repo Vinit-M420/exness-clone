@@ -348,17 +348,8 @@ orderRouter.post("/limit", async (c) => {
     if (!insertedOrder) if (!insertedOrder) throw new Error("Limit order creation failed");
     await redisClient.sadd("active:symbols", symbol);
     await redisClient.zadd(`trigger:${symbol}:${side}`, Number(triggerPrice), insertedOrder.id);
-    
-    if (stopLoss) {
-        await redisClient.zadd(`sl:${symbol}:${side}`,
-          Number(stopLoss),
-          insertedOrder.id
-    )}
-    if (takeProfit) {
-        await redisClient.zadd(`tp:${symbol}:${side}`,
-          Number(takeProfit),
-          insertedOrder.id
-    )}
+    // SL/TP stay in Postgres only until the order fills - openPosition registers
+    // them in Redis then, so they can't fire (and be lost) while still pending
   });
   return c.json({ message: "Limit order filed" }, HttpStatusCode.Created);
   }
@@ -446,12 +437,16 @@ orderRouter.put("/edit/:id", async (c) => {
     await redisClient.zrem(`sl:${order.symbol}:${side}`, orderId);
     await redisClient.zrem(`tp:${order.symbol}:${side}`, orderId);
 
-    // Add new limits
-    if (stopLoss !== null && stopLoss !== undefined)
+    // Add new limits - only for open orders; pending ones get theirs on fill
+    if (status === "open" && stopLoss !== null && stopLoss !== undefined)
       await redisClient.zadd(`sl:${order.symbol}:${side}`, stopLoss, orderId);
 
-    if (takeProfit !== null && takeProfit !== undefined)
+    if (status === "open" && takeProfit !== null && takeProfit !== undefined)
       await redisClient.zadd(`tp:${order.symbol}:${side}`, takeProfit, orderId);
+
+    // Move a pending order's trigger to the new price (ZADD updates the score)
+    if (status === "pending" && triggerPrice !== undefined)
+      await redisClient.zadd(`trigger:${order.symbol}:${side}`, triggerPrice, orderId);
 
     return c.json({ message: "Order edited successfully" }, 200);
 
