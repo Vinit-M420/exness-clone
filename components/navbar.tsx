@@ -74,8 +74,12 @@ export default function Navbar({
   }
 
   return (
-    <nav className="fixed top-0 left-0 right-0 z-50 border-b border-gray-900/10 bg-background/10 backdrop-blur-sm">
-        <div className="flex h-12 items-center justify-between mx-5 gap-4">
+    <nav
+      className={`fixed top-0 left-0 right-0 z-50 h-12 border-b ${
+        isDashboard ? 'border-gray-800 bg-[#0b0e1a]' : 'border-gray-900/10 bg-background/10 backdrop-blur-sm'
+      }`}
+    >
+        <div className="flex h-full items-center justify-between mx-5 gap-4">
             {/* Logo */}
         <h1 className={`${poppins.className} shrink-0 text-2xl tracking-wide font-semibold text-amber-300 `}>
           <Link href="/">

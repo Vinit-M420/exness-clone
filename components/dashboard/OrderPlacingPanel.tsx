@@ -165,7 +165,7 @@ export default function OrderPlacingPanel({ selectedSymbol, setTableRerender} : 
 }
 
   return (
-    <div className="w-80 h-[calc(100vh-48px)] bg-[#1a1d2e] border-l border-gray-800 flex flex-col z-10">
+    <div className="w-80 h-full shrink-0 overflow-hidden rounded-lg border border-gray-800 bg-[#1a1d2e] flex flex-col z-10">
       {/* Header */}
       <div className="flex items-center justify-between px-4 py-3 border-b border-gray-800">
         <div className="flex items-center gap-2">

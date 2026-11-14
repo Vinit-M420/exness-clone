@@ -183,7 +183,7 @@ export default function InstrumentsPanel({ selectedSymbol, setSelectedSymbol }: 
   )
 
   return (
-    <div className="w-80 h-[calc(100vh-48px)] bg-[#1a1d2e] border-t-3 border-r-2 border-gray-800 flex flex-col">
+    <div className="w-80 h-full shrink-0 overflow-hidden rounded-lg border border-gray-800 bg-[#1a1d2e] flex flex-col">
       {/* Header */}
       <div className="flex items-center justify-between px-4 py-3 border-b border-gray-800">
         <h2 className="text-sm font-medium text-gray-300 uppercase tracking-wide">
@@ -296,16 +296,16 @@ export default function InstrumentsPanel({ selectedSymbol, setSelectedSymbol }: 
         <Table className="w-full table-fixed">
           <TableHeader className="sticky top-0 z-10 bg-[#1a1d2e]">
             <TableRow className="border-b border-gray-800 hover:bg-transparent">
-              <TableHead className="text-xs text-gray-500 font-normal w-1/3 text-center">
+              <TableHead className="text-xs text-gray-500 font-normal w-[34%] text-center">
                 Symbol
               </TableHead>
-              <TableHead className="text-xs text-gray-500 font-normal w-1/6 text-center">
+              <TableHead className="text-xs text-gray-500 font-normal w-[12%] text-center">
                 Signal
               </TableHead>
-              <TableHead className="text-xs text-gray-500 font-normal w-1/3 text-center">
+              <TableHead className="text-xs text-gray-500 font-normal w-[27%] text-center">
                 Bid
               </TableHead>
-              <TableHead className="text-xs text-gray-500 font-normal w-1/6 text-center">
+              <TableHead className="text-xs text-gray-500 font-normal w-[27%] text-center">
                 Ask
               </TableHead>
             </TableRow>
@@ -318,7 +318,7 @@ export default function InstrumentsPanel({ selectedSymbol, setSelectedSymbol }: 
             collisionDetection={closestCenter}
             onDragEnd={handleDragEnd}
           >
-            <Table>
+            <Table className="w-full table-fixed">
               <TableBody>
                 <SortableContext
                   items={symbols.map((s) => s.symbol)}
