@@ -12,6 +12,7 @@ import {
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Order } from "@/types/orderInterface"
 import { OrderDetailsModal } from "./orderDetail"
+import { toast } from "sonner"
 
 export type OrderTabs = "Open" | "Pending" | "Closed";
 
@@ -73,8 +74,9 @@ export default function OrderTabs({orders, setOrders, loading} : OrdersTabProps)
       if (!res.ok) {
         const error = await res.json()
         console.log("Error response:", error);
-        // throw new Error(error.message || 'Failed to update order')
+        throw new Error(error.message || 'Failed to update order')
       }
+      toast.success("Order updated")
       // console.log(res);
       // Update local state
       setOrders((prev) =>
@@ -90,6 +92,7 @@ export default function OrderTabs({orders, setOrders, loading} : OrdersTabProps)
     )
     } catch (error) {
       console.error('Update order error:', error)
+      toast.error("Couldn't update order", { description: error instanceof Error ? error.message : undefined })
       throw error
     }
   }
@@ -118,8 +121,10 @@ export default function OrderTabs({orders, setOrders, loading} : OrdersTabProps)
           order.id === orderId ? { ...order, status: 'closed' } : order
         )
       )
+      toast.success("Position closed")
     } catch (error) {
       console.error('Close order error:', error)
+      toast.error("Couldn't close position", { description: error instanceof Error ? error.message : undefined })
       throw error
     }
   }
@@ -157,8 +162,10 @@ export default function OrderTabs({orders, setOrders, loading} : OrdersTabProps)
 
       // Remove from local state
       setOrders((prev) => prev.filter((order) => order.id !== orderId))
+      toast.success("Order cancelled")
     } catch (error) {
       console.error('Delete order error:', error)
+      toast.error("Couldn't cancel order", { description: error instanceof Error ? error.message : undefined })
       throw error
     }
   }
