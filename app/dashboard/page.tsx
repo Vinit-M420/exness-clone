@@ -13,12 +13,12 @@ import { diffOrders, showOrderEventToast } from '@/components/dashboard/funcs/or
 // Limit fills and SL/TP closes happen server-side with no push to the client,
 // so orders + balance are polled while the tab is visible to pick them up
 const ORDER_POLL_MS = 3000;
+const DEFAULT_SYMBOL = 'BINANCE:BTCUSDT';
 
 export default function DashboardPage() {
   // const [tickers, setTickers] = useState<Record<string, Ticker>>({});
   const [orders, setOrders] = useState<Order[]>([]);
   const [loading, setLoading] = useState(false);
-  const [selectedSymbol, setSelectedSymbol] = useState<string | null>(null);
   const [openSymbols, setOpenSymbols] = useState<string[]>(() => {
     if (typeof window !== "undefined") {
       try {
@@ -30,6 +30,11 @@ export default function DashboardPage() {
     }
     return [];
   });
+  // Start on the last open tab (or BTC, which the chart shows by default) so the
+  // order panel always has a symbol and live prices instead of "-"
+  const [selectedSymbol, setSelectedSymbol] = useState<string | null>(
+    () => openSymbols[openSymbols.length - 1] ?? DEFAULT_SYMBOL
+  );
   const [walletBalance, setWalletBalance] = useState<{ balance: string; currency: string } | null>(null);
   const [tableRerender, setTableRerender] = useState(false);
   const [jwtToken] = useState<string | null>(() => {
@@ -152,35 +157,36 @@ export default function DashboardPage() {
         onAddSymbol={setSelectedSymbol}
         walletBalance={walletBalance}
       />
-      <div className="relative z-10 flex mt-12 h-[calc(100vh-64px)]">
+      {/* Exactly one viewport tall: the navbar is fixed (48px), so the shell
+          pads 48px + the 8px gutter at the top and never scrolls. Every panel
+          is separated by the same 8px gap. */}
+      <main className="relative z-10 flex h-dvh gap-2 overflow-hidden px-2 pb-2 pt-14">
         {/* Left Sidebar - Instruments Panel */}
-        <InstrumentsPanel 
-          selectedSymbol={selectedSymbol} 
-          setSelectedSymbol={setSelectedSymbol} 
+        <InstrumentsPanel
+          selectedSymbol={selectedSymbol}
+          setSelectedSymbol={setSelectedSymbol}
         />
-        
+
         {/* Middle - Chart Area */}
-        <div className="flex-1 flex flex-col overflow-hidden">
+        <div className="flex min-w-0 flex-1 flex-col gap-2">
           {/* Top - Chart */}
-          <div className="flex-1 border-l border-gray-800 p-4 overflow-auto">
-            <div className="bg-transparent border border-gray-800 rounded-lg p-6 h-95">
-              <CandleChart selectedSymbol={selectedSymbol || 'BINANCE:BTCUSDT'} />
-            </div>
+          <div className="min-h-0 flex-1 rounded-lg border border-gray-800 bg-[#1a1d2e] p-4">
+            <CandleChart selectedSymbol={selectedSymbol || DEFAULT_SYMBOL} />
           </div>
-          
-          {/* Bottom - Order Tabs */}
-          <div className="h-75 border-l border-t border-gray-800 p-4">
+
+          {/* Bottom - Order Tabs: about a third of the height, capped both ways */}
+          <div className="h-[clamp(200px,32vh,320px)] shrink-0">
             <OrderTabs orders={orders} setOrders={setOrders} loading={loading} />
           </div>
         </div>
 
         {/* Right Sidebar - Order Placing Panel */}
-        <OrderPlacingPanel 
-          setOrders={setOrders} 
-          selectedSymbol={selectedSymbol} 
+        <OrderPlacingPanel
+          setOrders={setOrders}
+          selectedSymbol={selectedSymbol}
           setTableRerender={setTableRerender}
         />
-      </div>
+      </main>
     </>
   )
 }

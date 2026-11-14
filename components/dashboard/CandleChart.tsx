@@ -421,10 +421,13 @@ export default function CandleChart({ selectedSymbol }: CandlestickChartProps) {
       }
     }
 
-    window.addEventListener('resize', handleResize)
+    // The chart card flexes with the viewport and the orders panel height, so
+    // watch the container itself rather than only window resizes
+    const resizeObserver = new ResizeObserver(handleResize)
+    resizeObserver.observe(chartContainerRef.current)
 
     return () => {
-      window.removeEventListener('resize', handleResize)
+      resizeObserver.disconnect()
       chart.remove()
       chartRef.current = null
       candlestickSeriesRef.current = null
@@ -752,7 +755,7 @@ export default function CandleChart({ selectedSymbol }: CandlestickChartProps) {
       </div>
 
       {/* Chart area - container always mounted so the chart initializes once and stays alive */}
-      <div className="relative w-full flex-1 min-h-65">
+      <div className="relative w-full flex-1 min-h-0 overflow-hidden">
         <div
           ref={chartContainerRef}
           className="w-full h-full"
