@@ -49,8 +49,8 @@ export function showOrderEventToast(event: OrderEvent) {
   if (event.kind === "limit_filled") {
     toast.success("Limit order filled", { description: `${what} opened @ ${fmt(order.entryPrice)}` })
   } else if (event.kind === "take_profit") {
-    toast.success("Take profit hit", { description: `${what} closed @ ${fmt(order.exitPrice)} · PnL ${fmtPnl(order.pnl)}` })
+    toast.success("Take profit hit", { description: `${what} @ ${fmt(order.exitPrice)} · PnL ${fmtPnl(order.pnl)}` })
   } else {
-    toast.error("Stop loss hit", { description: `${what} closed @ ${fmt(order.exitPrice)} · PnL ${fmtPnl(order.pnl)}` })
+    toast.error("Stop loss hit", { description: `${what} @ ${fmt(order.exitPrice)} · PnL ${fmtPnl(order.pnl)}` })
   }
 }

@@ -26,7 +26,9 @@ export default function RootLayout({
     <html lang="en" className="dark">
       <body className={`min-h-screen bg-[#050812] text-[#E8E9ED] ${inter.className}`}>
         {children}
-        <Toaster position="bottom-right" richColors closeButton />
+        {/* Top-right of the chart area: clear of the navbar (48px) and the
+            320px order panel, so toasts never cover the Buy/Sell buttons */}
+        <Toaster position="top-right" offset={{ top: 64, right: 336 }} closeButton />
       </body>
     </html>
   );
